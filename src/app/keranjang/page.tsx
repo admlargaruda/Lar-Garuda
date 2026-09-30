@@ -24,8 +24,11 @@ export default function CartPage() {
   } | null>(null);
 
   const [showCheckoutForm, setShowCheckoutForm] = useState(false);
+
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+
   const [isProcessing, setIsProcessing] = useState(false);
 
   // =====================================================
@@ -57,7 +60,11 @@ export default function CartPage() {
           .in("id", ids);
 
         if (error) {
-          console.error("Gagal mengambil data produk:", error);
+          console.error(
+            "Gagal mengambil data produk:",
+            error
+          );
+
           setCart(parsedCart);
           return;
         }
@@ -89,7 +96,11 @@ export default function CartPage() {
           JSON.stringify(updatedCart)
         );
       } catch (error) {
-        console.error("Gagal membaca keranjang:", error);
+        console.error(
+          "Gagal membaca keranjang:",
+          error
+        );
+
         setCart([]);
       }
     };
@@ -204,7 +215,8 @@ export default function CartPage() {
 
   const total = cart.reduce(
     (sum, item) =>
-      sum + Number(item.price) * item.quantity,
+      sum +
+      Number(item.price) * item.quantity,
     0
   );
 
@@ -228,15 +240,36 @@ export default function CartPage() {
   const processCheckout = async () => {
     if (isProcessing) return;
 
+    // =================================================
+    // VALIDASI NAMA
+    // =================================================
+
     if (!customerName.trim()) {
       alert("Silakan masukkan nama Anda.");
       return;
     }
 
+    // =================================================
+    // VALIDASI NOMOR WHATSAPP
+    // =================================================
+
     if (!customerPhone.trim()) {
       alert("Silakan masukkan nomor WhatsApp Anda.");
       return;
     }
+
+    // =================================================
+    // VALIDASI ALAMAT
+    // =================================================
+
+    if (!customerAddress.trim()) {
+      alert("Silakan masukkan alamat pengiriman Anda.");
+      return;
+    }
+
+    // =================================================
+    // VALIDASI KERANJANG
+    // =================================================
 
     if (cart.length === 0) {
       alert("Keranjang masih kosong.");
@@ -259,7 +292,9 @@ export default function CartPage() {
         error: stockCheckError,
       } = await supabase
         .from("products")
-        .select("id, name, price, image, stock")
+        .select(
+          "id, name, price, image, stock"
+        )
         .in("id", ids);
 
       if (stockCheckError) {
@@ -298,6 +333,7 @@ export default function CartPage() {
         const currentStock =
           Number(product.stock ?? 0);
 
+        // STOK HABIS
         if (currentStock <= 0) {
           setShowCheckoutForm(false);
 
@@ -310,7 +346,11 @@ export default function CartPage() {
           return;
         }
 
-        if (item.quantity > currentStock) {
+        // JUMLAH MELEBIHI STOK
+        if (
+          item.quantity >
+          currentStock
+        ) {
           const updatedCart =
             cart.map((cartItem) =>
               cartItem.id === item.id
@@ -389,6 +429,10 @@ export default function CartPage() {
         return;
       }
 
+      // =================================================
+      // CEK ORDER ID
+      // =================================================
+
       if (!orderId) {
         alert(
           "Pesanan gagal diproses karena Order ID tidak diterima."
@@ -403,7 +447,7 @@ export default function CartPage() {
       );
 
       // =================================================
-      // BUAT PESAN WHATSAPP
+      // BUAT DAFTAR PRODUK UNTUK WHATSAPP
       // =================================================
 
       const itemsMessage = cart
@@ -411,7 +455,9 @@ export default function CartPage() {
           (item, index) =>
             `${index + 1}. ${item.name}
 Jumlah: ${item.quantity}
-Harga: ${formatRupiah(Number(item.price))}
+Harga: ${formatRupiah(
+              Number(item.price)
+            )}
 Subtotal: ${formatRupiah(
               Number(item.price) *
                 item.quantity
@@ -419,18 +465,27 @@ Subtotal: ${formatRupiah(
         )
         .join("\n\n");
 
+      // =================================================
+      // PESAN WHATSAPP
+      // =================================================
+
       const message = `Halo Lar Garuda, saya ingin melakukan pemesanan:
 
 Nama: ${customerName.trim()}
 No. WhatsApp: ${customerPhone.trim()}
 
+Alamat Pengiriman:
+${customerAddress.trim()}
+
 ${itemsMessage}
 
 Total Pesanan: ${formatRupiah(total)}
 
+Harga belum termasuk ongkir.
+
 Order ID: ${orderId}
 
-Apakah produk masih tersedia?`;
+Mohon konfirmasi pesanan saya. Terima kasih.`;
 
       // =================================================
       // NOMOR WHATSAPP LAR GARUDA
@@ -455,6 +510,8 @@ Apakah produk masih tersedia?`;
 
       setCustomerName("");
       setCustomerPhone("");
+      setCustomerAddress("");
+
       setShowCheckoutForm(false);
 
       // =================================================
@@ -463,7 +520,6 @@ Apakah produk masih tersedia?`;
 
       window.location.href =
         whatsappUrl;
-
     } catch (error) {
       console.error(
         "Checkout error:",
@@ -481,12 +537,16 @@ Apakah produk masih tersedia?`;
   return (
     <main className="min-h-screen bg-[#f8f5ef] text-[#2f241c]">
 
-      {/* NAVBAR */}
+      {/* =================================================
+          NAVBAR
+      ================================================= */}
 
       <nav className="border-b border-[#2f241c]/10 bg-[#f8f5ef]">
+
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
 
           <Link href="/">
+
             <h1 className="font-serif text-2xl font-bold tracking-wide">
               LAR GARUDA
             </h1>
@@ -494,6 +554,7 @@ Apakah produk masih tersedia?`;
             <p className="text-[10px] uppercase tracking-[0.3em]">
               Sarung Indonesia
             </p>
+
           </Link>
 
           <Link
@@ -504,9 +565,12 @@ Apakah produk masih tersedia?`;
           </Link>
 
         </div>
+
       </nav>
 
-      {/* CONTENT */}
+      {/* =================================================
+          CONTENT
+      ================================================= */}
 
       <section className="mx-auto max-w-5xl px-6 py-16">
 
@@ -522,7 +586,9 @@ Apakah produk masih tersedia?`;
 
         </div>
 
-        {/* KERANJANG KOSONG */}
+        {/* =================================================
+            KERANJANG KOSONG
+        ================================================= */}
 
         {cart.length === 0 ? (
 
@@ -541,7 +607,7 @@ Apakah produk masih tersedia?`;
             </p>
 
             <Link
-              href="/"
+              href="/produk"
               className="mt-7 inline-block rounded-full bg-[#2f241c] px-8 py-3 text-sm font-medium text-white transition hover:bg-[#a27b3f]"
             >
               Lihat Produk
@@ -553,7 +619,9 @@ Apakah produk masih tersedia?`;
 
           <div className="space-y-6">
 
-            {/* DAFTAR PRODUK */}
+            {/* =================================================
+                DAFTAR PRODUK
+            ================================================= */}
 
             {cart.map((item) => (
 
@@ -575,7 +643,9 @@ Apakah produk masih tersedia?`;
                   </h2>
 
                   <p className="mt-2 font-semibold text-[#a27b3f]">
-                    {formatRupiah(Number(item.price))}
+                    {formatRupiah(
+                      Number(item.price)
+                    )}
                   </p>
 
                   <div className="mt-4 flex items-center gap-3">
@@ -636,9 +706,7 @@ Apakah produk masih tersedia?`;
                   <button
                     type="button"
                     onClick={() =>
-                      removeItem(
-                        item.id
-                      )
+                      removeItem(item.id)
                     }
                     className="text-sm text-red-600 transition hover:text-red-800"
                   >
@@ -651,7 +719,9 @@ Apakah produk masih tersedia?`;
 
             ))}
 
-            {/* TOTAL */}
+            {/* =================================================
+                RINGKASAN PESANAN
+            ================================================= */}
 
             <div className="rounded-3xl bg-[#e5ded3] p-6">
 
@@ -667,11 +737,15 @@ Apakah produk masih tersedia?`;
 
               </div>
 
+              {/* KETERANGAN ONGKIR */}
+
+              <p className="mt-2 text-right text-xs text-[#2f241c]/60">
+                Harga belum termasuk ongkir
+              </p>
+
               <button
                 type="button"
-                onClick={
-                  checkoutWhatsApp
-                }
+                onClick={checkoutWhatsApp}
                 className="mt-6 flex w-full items-center justify-center rounded-full bg-[#2f241c] px-8 py-4 font-medium text-white transition hover:bg-[#a27b3f]"
               >
                 Checkout via WhatsApp
@@ -680,15 +754,18 @@ Apakah produk masih tersedia?`;
             </div>
 
           </div>
+
         )}
 
       </section>
 
-      {/* FORM DATA PEMESAN */}
+      {/* =================================================
+          FORM DATA PEMESAN
+      ================================================= */}
 
       {showCheckoutForm && (
 
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 px-6 py-8 backdrop-blur-sm">
 
           <div className="w-full max-w-md rounded-3xl bg-[#f8f5ef] p-7 shadow-2xl">
 
@@ -699,6 +776,10 @@ Apakah produk masih tersedia?`;
             <p className="mt-2 text-sm text-[#2f241c]/60">
               Masukkan data Anda sebelum melanjutkan pesanan.
             </p>
+
+            {/* =================================================
+                NAMA
+            ================================================= */}
 
             <div className="mt-6">
 
@@ -721,6 +802,10 @@ Apakah produk masih tersedia?`;
 
             </div>
 
+            {/* =================================================
+                NOMOR WHATSAPP
+            ================================================= */}
+
             <div className="mt-4">
 
               <label className="text-sm font-medium">
@@ -742,15 +827,86 @@ Apakah produk masih tersedia?`;
 
             </div>
 
+            {/* =================================================
+                ALAMAT
+            ================================================= */}
+
+            <div className="mt-4">
+
+              <label className="text-sm font-medium">
+                Alamat Pengiriman
+              </label>
+
+              <textarea
+                value={customerAddress}
+                onChange={(e) =>
+                  setCustomerAddress(
+                    e.target.value
+                  )
+                }
+                placeholder="Masukkan alamat lengkap pengiriman"
+                rows={4}
+                disabled={isProcessing}
+                className="mt-2 w-full resize-none rounded-2xl border border-[#2f241c]/20 bg-white px-4 py-3 outline-none transition focus:border-[#a27b3f] disabled:opacity-50"
+              />
+
+              <p className="mt-2 text-xs text-[#2f241c]/50">
+                Pastikan alamat pengiriman sudah lengkap dan benar.
+              </p>
+
+            </div>
+
+            {/* =================================================
+                RINGKASAN
+            ================================================= */}
+
+            <div className="mt-5 rounded-2xl bg-white p-4">
+
+              <div className="flex justify-between gap-4 text-sm">
+
+                <span className="text-[#2f241c]/60">
+                  Jumlah Produk
+                </span>
+
+                <span className="font-medium">
+                  {cart.reduce(
+                    (sum, item) =>
+                      sum + item.quantity,
+                    0
+                  )}
+                </span>
+
+              </div>
+
+              <div className="mt-2 flex justify-between">
+
+                <span className="text-[#2f241c]/60">
+                  Total
+                </span>
+
+                <span className="font-bold text-[#a27b3f]">
+                  {formatRupiah(total)}
+                </span>
+
+              </div>
+
+              <p className="mt-2 text-xs text-[#2f241c]/50">
+                Harga belum termasuk ongkir
+              </p>
+
+            </div>
+
+            {/* =================================================
+                BUTTON
+            ================================================= */}
+
             <div className="mt-7 flex gap-3">
 
               <button
                 type="button"
                 disabled={isProcessing}
                 onClick={() =>
-                  setShowCheckoutForm(
-                    false
-                  )
+                  setShowCheckoutForm(false)
                 }
                 className="flex-1 rounded-full border border-[#2f241c]/20 px-5 py-3 text-sm font-medium transition hover:bg-[#e5ded3] disabled:opacity-50"
               >
@@ -760,9 +916,7 @@ Apakah produk masih tersedia?`;
               <button
                 type="button"
                 disabled={isProcessing}
-                onClick={
-                  processCheckout
-                }
+                onClick={processCheckout}
                 className="flex-1 rounded-full bg-[#2f241c] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#a27b3f] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isProcessing
@@ -778,7 +932,9 @@ Apakah produk masih tersedia?`;
 
       )}
 
-      {/* MODAL HAPUS */}
+      {/* =================================================
+          MODAL HAPUS
+      ================================================= */}
 
       {deleteId && (
 
@@ -815,9 +971,7 @@ Apakah produk masih tersedia?`;
 
               <button
                 type="button"
-                onClick={
-                  confirmDelete
-                }
+                onClick={confirmDelete}
                 className="flex-1 rounded-full bg-[#2f241c] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#a27b3f]"
               >
                 Hapus
@@ -831,7 +985,9 @@ Apakah produk masih tersedia?`;
 
       )}
 
-      {/* MODAL STOK */}
+      {/* =================================================
+          MODAL STOK
+      ================================================= */}
 
       {stockWarning && (
 
@@ -891,7 +1047,9 @@ Apakah produk masih tersedia?`;
 
       )}
 
-      {/* FOOTER */}
+      {/* =================================================
+          FOOTER
+      ================================================= */}
 
       <footer className="bg-[#2f241c] px-6 py-8 text-center text-sm text-white/60">
         © 2026 Lar Garuda. All rights reserved.

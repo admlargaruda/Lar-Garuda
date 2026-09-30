@@ -35,6 +35,7 @@ export default function BuySection({
 
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
 
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -152,6 +153,11 @@ export default function BuySection({
       return;
     }
 
+    if (!customerAddress.trim()) {
+      setMessage("Silakan masukkan alamat lengkap Anda.");
+      return;
+    }
+
     if (quantity <= 0) {
       setMessage("Jumlah produk tidak valid.");
       return;
@@ -256,6 +262,7 @@ export default function BuySection({
         {
           p_customer_name: customerName.trim(),
           p_customer_phone: customerPhone.trim(),
+          p_customer_address: customerAddress.trim(),
           p_items: orderItems,
         }
       );
@@ -315,6 +322,7 @@ export default function BuySection({
 
 Nama: ${customerName.trim()}
 No. WhatsApp: ${customerPhone.trim()}
+Alamat: ${customerAddress.trim()}
 
 Produk: ${latestProduct.name}
 Jumlah: ${quantity}
@@ -322,6 +330,10 @@ Harga: ${formatRupiah(latestProduct.price)}
 Subtotal: ${formatRupiah(total)}
 
 Total Pesanan: ${formatRupiah(total)}
+
+Catatan:
+Harga belum termasuk ongkir.
+Ongkos kirim akan diinformasikan setelah alamat dikonfirmasi.
 
 Order ID: ${orderId}
 
@@ -338,6 +350,7 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
       setShowForm(false);
       setCustomerName("");
       setCustomerPhone("");
+      setCustomerAddress("");
       setQuantity(1);
       setMessage("");
 
@@ -362,16 +375,26 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
 
   return (
     <>
+      {/* HARGA */}
+
+      <div className="mt-6">
+        <p className="text-2xl font-semibold text-[#a27b3f]">
+          {formatRupiah(product.price)}
+        </p>
+
+        <p className="mt-1 text-xs italic text-[#2f241c]/50">
+          Harga belum termasuk ongkir
+        </p>
+      </div>
+
       {/* JUMLAH PRODUK */}
 
       <div className="mt-8">
-
         <p className="mb-3 text-sm font-medium">
           Jumlah
         </p>
 
         <div className="flex items-center gap-3">
-
           <button
             type="button"
             disabled={
@@ -410,7 +433,6 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
           >
             +
           </button>
-
         </div>
 
         <p className="mt-2 text-xs text-[#2f241c]/50">
@@ -418,13 +440,11 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
             ? `Stok tersedia: ${product.stock}`
             : "Stok habis"}
         </p>
-
       </div>
 
       {/* TOMBOL */}
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-
         <button
           type="button"
           onClick={addToCart}
@@ -448,16 +468,13 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
         >
           Beli Sekarang via WhatsApp
         </button>
-
       </div>
 
       {/* FORM DATA PEMESAN */}
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6 backdrop-blur-sm">
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 px-6 py-8 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl bg-[#f8f5ef] p-7 shadow-2xl">
-
             <h2 className="font-serif text-2xl font-bold">
               Data Pemesan
             </h2>
@@ -469,7 +486,6 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
             {/* NAMA */}
 
             <div className="mt-6">
-
               <label className="text-sm font-medium">
                 Nama
               </label>
@@ -486,13 +502,11 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
                 disabled={isProcessing}
                 className="mt-2 w-full rounded-2xl border border-[#2f241c]/20 bg-white px-4 py-3 outline-none transition focus:border-[#a27b3f] disabled:opacity-50"
               />
-
             </div>
 
             {/* NOMOR WHATSAPP */}
 
             <div className="mt-4">
-
               <label className="text-sm font-medium">
                 No. WhatsApp
               </label>
@@ -509,8 +523,60 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
                 disabled={isProcessing}
                 className="mt-2 w-full rounded-2xl border border-[#2f241c]/20 bg-white px-4 py-3 outline-none transition focus:border-[#a27b3f] disabled:opacity-50"
               />
-
             </div>
+
+            {/* ALAMAT */}
+
+            <div className="mt-4">
+              <label className="text-sm font-medium">
+                Alamat Lengkap
+              </label>
+
+              <textarea
+                value={customerAddress}
+                onChange={(e) =>
+                  setCustomerAddress(
+                    e.target.value
+                  )
+                }
+                placeholder="Contoh: Jl. Merpati No. 10, RT 02/RW 03, Kelurahan..., Kecamatan..., Kabupaten..., Jawa Tengah"
+                rows={4}
+                disabled={isProcessing}
+                className="mt-2 w-full resize-none rounded-2xl border border-[#2f241c]/20 bg-white px-4 py-3 outline-none transition focus:border-[#a27b3f] disabled:opacity-50"
+              />
+            </div>
+
+            {/* RINGKASAN */}
+
+              <div className="mt-5 rounded-2xl bg-[#e5ded3] p-4">
+                <p className="text-xs uppercase tracking-[0.15em] text-[#2f241c]/50">
+                  Ringkasan Pesanan
+                </p>
+
+                <div className="mt-3 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-medium">
+                      {product.name}
+                    </p>
+
+                    <p className="mt-1 text-sm text-[#2f241c]/60">
+                      {quantity} ×{" "}
+                      {formatRupiah(product.price)}
+                    </p>
+                  </div>
+
+                  <p className="font-semibold text-[#a27b3f]">
+                    {formatRupiah(product.price * quantity)}
+                  </p>
+                </div>
+
+                {/* KETERANGAN ONGKIR */}
+                <div className="mt-3 border-t border-[#2f241c]/10 pt-3">
+                  <p className="text-xs italic text-[#2f241c]/60">
+                    Harga belum termasuk ongkir
+                  </p>
+                </div>
+              </div>
 
             {/* PESAN */}
 
@@ -523,7 +589,6 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
             {/* BUTTON */}
 
             <div className="mt-7 flex gap-3">
-
               <button
                 type="button"
                 disabled={isProcessing}
@@ -545,11 +610,8 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
                   ? "Memproses..."
                   : "Lanjutkan"}
               </button>
-
             </div>
-
           </div>
-
         </div>
       )}
     </>

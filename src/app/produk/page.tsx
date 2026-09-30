@@ -2,51 +2,91 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { Product } from "@/data/products";
 import { supabase } from "@/lib/supabase";
 
+type Product = {
+  id: number;
+  name: string;
+  image: string;
+  category: string;
+};
+
+type CategoryPreview = {
+  category: string;
+  products: Product[];
+};
+
 export default function ProdukPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<CategoryPreview[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchCategories = async () => {
       setLoading(true);
 
       const { data, error } = await supabase
         .from("products")
-        .select("*")
-        .order("id", { ascending: true });
+        .select("id, name, image, category")
+        .not("category", "is", null)
+        .order("id", {
+          ascending: true,
+        });
 
       if (error) {
-        console.error("Gagal mengambil produk:", error);
+        console.error(
+          "Gagal mengambil kategori:",
+          error
+        );
+
         setLoading(false);
         return;
       }
 
-      setProducts(data || []);
+      const products = (data || []) as Product[];
+
+      const groupedCategories: CategoryPreview[] = [];
+
+      products.forEach((product) => {
+        if (!product.category) return;
+
+        const existingCategory =
+          groupedCategories.find(
+            (item) =>
+              item.category === product.category
+          );
+
+        if (existingCategory) {
+          existingCategory.products.push(product);
+        } else {
+          groupedCategories.push({
+            category: product.category,
+            products: [product],
+          });
+        }
+      });
+
+      setCategories(groupedCategories);
       setLoading(false);
     };
 
-    fetchProducts();
+    fetchCategories();
   }, []);
-
-  const formatRupiah = (value: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(value);
-  };
 
   return (
     <main className="min-h-screen bg-[#f8f5ef] text-[#2f241c]">
 
-      {/* NAVBAR */}
+      {/* =====================================================
+          NAVBAR
+      ===================================================== */}
+
       <nav className="sticky top-0 z-50 border-b border-[#2f241c]/10 bg-[#f8f5ef]/95 backdrop-blur-md">
+
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-6">
 
-          <Link href="/" className="text-center">
+          <Link
+            href="/"
+            className="text-center"
+          >
             <h1 className="font-serif text-2xl font-bold tracking-wide">
               LAR GARUDA
             </h1>
@@ -75,9 +115,13 @@ export default function ProdukPage() {
           </div>
 
         </div>
+
       </nav>
 
-      {/* HEADER */}
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
+
       <section className="mx-auto max-w-7xl px-5 pb-12 pt-16 sm:px-6">
 
         <div className="text-center">
@@ -87,153 +131,71 @@ export default function ProdukPage() {
           </p>
 
           <h2 className="mt-4 font-serif text-4xl font-bold sm:text-5xl">
-            Semua Produk
+            Katalog
           </h2>
 
           <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-[#2f241c]/60">
-            Jelajahi seluruh koleksi sarung Lar Garuda yang
-            tersedia untuk Anda.
+            Jelajahi koleksi sarung Lar Garuda
+            berdasarkan kategori.
           </p>
 
         </div>
 
       </section>
 
-      {/* PRODUCT LIST */}
+      {/* =====================================================
+          KATEGORI
+      ===================================================== */}
+
       <section className="mx-auto max-w-7xl px-5 pb-24 sm:px-6">
 
         {loading ? (
 
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-2">
 
-            {[1, 2, 3, 4].map((item) => (
-              <div
-                key={item}
-                className="overflow-hidden rounded-3xl bg-white"
-              >
+            {[1, 2, 3, 4, 5, 6].map(
+              (item) => (
 
-                <div className="h-[380px] animate-pulse bg-[#e5ded3]" />
+                <div
+                  key={item}
+                  className="h-[360px] animate-pulse rounded-[2rem] bg-white"
+                />
 
-                <div className="space-y-4 p-6">
-
-                  <div className="h-5 w-3/4 animate-pulse rounded bg-[#e5ded3]" />
-
-                  <div className="h-5 w-1/2 animate-pulse rounded bg-[#e5ded3]" />
-
-                  <div className="h-10 w-full animate-pulse rounded-full bg-[#e5ded3]" />
-
-                </div>
-
-              </div>
-            ))}
+              )
+            )}
 
           </div>
 
-        ) : products.length === 0 ? (
+        ) : categories.length === 0 ? (
 
           <div className="rounded-3xl bg-white p-12 text-center shadow-sm">
 
-            <p className="font-serif text-2xl font-bold">
-              Produk Belum Tersedia
-            </p>
+            <h3 className="font-serif text-2xl font-bold">
+              Kategori Belum Tersedia
+            </h3>
 
             <p className="mt-3 text-sm text-[#2f241c]/50">
-              Belum ada produk yang tersedia saat ini.
+              Belum ada produk dengan kategori
+              yang tersedia.
             </p>
 
           </div>
 
         ) : (
 
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-2">
 
-            {products.map((product) => (
+            {categories.map(
+              (category, categoryIndex) => (
 
-              <Link
-                key={product.id}
-                href={`/produk/${product.id}`}
-                className="group"
-              >
+                <CategoryCard
+                  key={category.category}
+                  category={category}
+                  categoryIndex={categoryIndex}
+                />
 
-                <div className="overflow-hidden rounded-3xl bg-white shadow-sm transition duration-300 hover:-translate-y-2 hover:shadow-xl">
-
-                  {/* FOTO */}
-                  <div className="relative overflow-hidden bg-[#e5ded3]">
-
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className={`h-[380px] w-full object-cover transition duration-500 ${
-                        product.stock > 0
-                          ? "group-hover:scale-105"
-                          : "opacity-60 grayscale"
-                      }`}
-                    />
-
-                    <div className="absolute left-4 top-4 rounded-full bg-[#2f241c]/90 px-4 py-2 text-xs font-medium text-white backdrop-blur">
-                      Lar Garuda
-                    </div>
-
-                    {product.stock <= 0 ? (
-
-                      <div className="absolute right-4 top-4 rounded-full bg-red-600 px-4 py-2 text-xs font-medium text-white">
-                        Stok Habis
-                      </div>
-
-                    ) : (
-
-                      <div className="absolute right-4 top-4 rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-[#2f241c] backdrop-blur">
-                        Tersedia
-                      </div>
-
-                    )}
-
-                  </div>
-
-                  {/* INFORMASI */}
-                  <div className="p-6">
-
-                    <h3 className="font-serif text-xl font-bold">
-                      {product.name}
-                    </h3>
-
-                    <p className="mt-3 text-lg font-semibold text-[#a27b3f]">
-                      {formatRupiah(product.price)}
-                    </p>
-
-                    <div className="mt-4">
-
-                      {product.stock <= 0 ? (
-
-                        <p className="text-sm font-medium text-red-600">
-                          Stok habis
-                        </p>
-
-                      ) : (
-
-                        <p className="text-sm text-[#2f241c]/50">
-                          Stok tersedia: {product.stock}
-                        </p>
-
-                      )}
-
-                    </div>
-
-                    <div className="mt-5">
-
-                      <span className="block w-full rounded-full bg-[#2f241c] px-5 py-3 text-center text-sm font-medium text-white transition group-hover:bg-[#a27b3f]">
-                        Lihat Detail →
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </Link>
-
-            ))}
+              )
+            )}
 
           </div>
 
@@ -241,7 +203,10 @@ export default function ProdukPage() {
 
       </section>
 
-      {/* FOOTER */}
+      {/* =====================================================
+          FOOTER
+      ===================================================== */}
+
       <footer className="bg-[#2f241c] px-6 py-10 text-center text-white">
 
         <p className="font-serif text-xl font-bold">
@@ -261,5 +226,157 @@ export default function ProdukPage() {
       </footer>
 
     </main>
+  );
+}
+
+
+/* =========================================================
+   CATEGORY CARD
+========================================================= */
+
+function CategoryCard({
+  category,
+  categoryIndex,
+}: {
+  category: CategoryPreview;
+  categoryIndex: number;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  const products = category.products;
+
+  useEffect(() => {
+    if (products.length <= 1) return;
+
+    const interval = setInterval(() => {
+
+      setVisible(false);
+
+      setTimeout(() => {
+
+        setCurrentIndex(
+          (previousIndex) =>
+            (previousIndex + 1) %
+            products.length
+        );
+
+        setVisible(true);
+
+      }, 700);
+
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+    };
+
+  }, [products.length]);
+
+  const currentProduct =
+    products[currentIndex];
+
+  if (!currentProduct) {
+    return null;
+  }
+
+  return (
+    <Link
+      href={`/produk/kategori/${encodeURIComponent(
+        category.category
+      )}`}
+      className="group relative block overflow-hidden rounded-[2rem] bg-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-2xl"
+    >
+
+      {/* =================================================
+          FOTO PRODUK
+      ================================================= */}
+
+      <div className="relative h-[360px] overflow-hidden bg-[#e5ded3]">
+
+        <img
+          key={currentProduct.id}
+          src={currentProduct.image}
+          alt={currentProduct.name}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+            visible
+              ? "opacity-100"
+              : "opacity-0"
+          }`}
+        />
+
+        {/* OVERLAY */}
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+        {/* =================================================
+            NOMOR KATEGORI
+        ================================================= */}
+
+        <div className="absolute left-6 top-6 rounded-full bg-white/90 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.3em] text-[#a27b3f] backdrop-blur">
+          Kategori {categoryIndex + 1}
+        </div>
+
+        {/* =================================================
+            INFORMASI
+        ================================================= */}
+
+        <div className="absolute bottom-0 left-0 right-0 p-7 text-white">
+
+          <p className="text-xs uppercase tracking-[0.25em] text-white/60">
+            Koleksi
+          </p>
+
+          <h3 className="mt-2 font-serif text-3xl font-bold">
+            {category.category}
+          </h3>
+
+          <p className="mt-2 text-sm text-white/70">
+            {currentProduct.name}
+          </p>
+
+          <div className="mt-5 flex items-center justify-between">
+
+            <span className="text-sm font-medium">
+              Lihat koleksi →
+            </span>
+
+            {/* INDICATOR */}
+
+            {products.length > 1 && (
+
+              <div className="flex gap-1.5">
+
+                {products
+                  .slice(0, Math.min(products.length, 5))
+                  .map((_, index) => (
+
+                    <span
+                      key={index}
+                      className={`h-1.5 rounded-full transition-all duration-500 ${
+                        index ===
+                        currentIndex %
+                          Math.min(
+                            products.length,
+                            5
+                          )
+                          ? "w-5 bg-white"
+                          : "w-1.5 bg-white/40"
+                      }`}
+                    />
+
+                  ))}
+
+              </div>
+
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </Link>
   );
 }

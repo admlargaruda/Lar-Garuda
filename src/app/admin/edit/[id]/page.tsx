@@ -8,11 +8,25 @@ import { supabase } from "@/lib/supabase";
 type Product = {
   id: number;
   name: string;
+  category: string | null;
   price: number;
   image: string;
   description: string;
   stock: number;
 };
+
+const categories = [
+  "Kelengan",
+  "Kesikan",
+  "Bledag",
+  "Premium 1",
+  "Granit Malaman",
+  "Granit",
+  "New Partan",
+  "Full Tulis (A)",
+  "Full Tulis (B)",
+  "Full Tulis Signature",
+];
 
 export default function EditProduk() {
   const router = useRouter();
@@ -23,6 +37,7 @@ export default function EditProduk() {
   const [product, setProduct] = useState<Product | null>(null);
 
   const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
@@ -52,7 +67,11 @@ export default function EditProduk() {
 
       if (error) {
         console.error(error);
-        setError(`Gagal mengambil data produk: ${error.message}`);
+
+        setError(
+          `Gagal mengambil data produk: ${error.message}`
+        );
+
         setLoading(false);
         return;
       }
@@ -60,6 +79,7 @@ export default function EditProduk() {
       setProduct(data);
 
       setName(data.name);
+      setCategory(data.category ?? "");
       setPrice(String(data.price));
       setStock(String(data.stock ?? 0));
       setDescription(data.description ?? "");
@@ -86,12 +106,16 @@ export default function EditProduk() {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setError("File yang dipilih harus berupa gambar.");
+      setError(
+        "File yang dipilih harus berupa gambar."
+      );
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setError("Ukuran gambar maksimal 5 MB.");
+      setError(
+        "Ukuran gambar maksimal 5 MB."
+      );
       return;
     }
 
@@ -99,7 +123,9 @@ export default function EditProduk() {
 
     setImageFile(file);
 
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl =
+      URL.createObjectURL(file);
+
     setImagePreview(previewUrl);
   };
 
@@ -107,13 +133,55 @@ export default function EditProduk() {
   // SIMPAN PERUBAHAN
   // ==============================
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (
+    e: FormEvent
+  ) => {
     e.preventDefault();
 
     setError("");
     setSaving(true);
 
     try {
+      if (!name.trim()) {
+        setError(
+          "Nama produk wajib diisi."
+        );
+        setSaving(false);
+        return;
+      }
+
+      if (!category) {
+        setError(
+          "Silakan pilih kategori produk."
+        );
+        setSaving(false);
+        return;
+      }
+
+      if (!price || Number(price) <= 0) {
+        setError(
+          "Harga produk harus lebih dari 0."
+        );
+        setSaving(false);
+        return;
+      }
+
+      if (!stock || Number(stock) < 0) {
+        setError(
+          "Stok produk tidak boleh kurang dari 0."
+        );
+        setSaving(false);
+        return;
+      }
+
+      if (!description.trim()) {
+        setError(
+          "Deskripsi produk wajib diisi."
+        );
+        setSaving(false);
+        return;
+      }
+
       let imageUrl = image;
 
       // ==============================
@@ -124,12 +192,16 @@ export default function EditProduk() {
         const fileExtension =
           imageFile.name.split(".").pop();
 
-        const fileName = `${Date.now()}-${id}.${fileExtension}`;
+        const fileName =
+          `${Date.now()}-${id}.${fileExtension}`;
 
         const { error: uploadError } =
           await supabase.storage
             .from("product-images")
-            .upload(fileName, imageFile);
+            .upload(
+              fileName,
+              imageFile
+            );
 
         if (uploadError) {
           console.error(uploadError);
@@ -142,28 +214,33 @@ export default function EditProduk() {
           return;
         }
 
-        const { data: publicUrlData } =
-          supabase.storage
-            .from("product-images")
-            .getPublicUrl(fileName);
+        const {
+          data: publicUrlData,
+        } = supabase.storage
+          .from("product-images")
+          .getPublicUrl(fileName);
 
-        imageUrl = publicUrlData.publicUrl;
+        imageUrl =
+          publicUrlData.publicUrl;
       }
 
       // ==============================
       // UPDATE DATABASE
       // ==============================
 
-      const { error: updateError } = await supabase
-        .from("products")
-        .update({
-          name,
-          price: Number(price),
-          stock: Number(stock),
-          image: imageUrl,
-          description,
-        })
-        .eq("id", Number(id));
+      const { error: updateError } =
+        await supabase
+          .from("products")
+          .update({
+            name: name.trim(),
+            category: category,
+            price: Number(price),
+            stock: Number(stock),
+            image: imageUrl,
+            description:
+              description.trim(),
+          })
+          .eq("id", Number(id));
 
       if (updateError) {
         console.error(updateError);
@@ -201,21 +278,25 @@ export default function EditProduk() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f8f5ef]">
+
         <p className="text-[#2f241c]/60">
           Memuat data produk...
         </p>
+
       </main>
     );
   }
 
   // ==============================
-  // ERROR / PRODUK TIDAK ADA
+  // PRODUK TIDAK DITEMUKAN
   // ==============================
 
   if (!product) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f8f5ef] px-6">
+
         <div className="text-center">
+
           <h1 className="font-serif text-3xl font-bold">
             Produk Tidak Ditemukan
           </h1>
@@ -226,11 +307,13 @@ export default function EditProduk() {
 
           <Link
             href="/admin"
-            className="mt-6 inline-block rounded-full bg-[#2f241c] px-6 py-3 text-sm text-white"
+            className="mt-6 inline-block rounded-full bg-[#2f241c] px-6 py-3 text-sm text-white transition hover:bg-[#a27b3f]"
           >
             Kembali ke Dashboard
           </Link>
+
         </div>
+
       </main>
     );
   }
@@ -241,9 +324,11 @@ export default function EditProduk() {
       {/* HEADER */}
 
       <header className="border-b border-[#2f241c]/10 bg-white">
+
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
 
           <div>
+
             <h1 className="font-serif text-2xl font-bold">
               LAR GARUDA
             </h1>
@@ -251,6 +336,7 @@ export default function EditProduk() {
             <p className="text-xs uppercase tracking-[0.2em] text-[#2f241c]/50">
               Edit Produk
             </p>
+
           </div>
 
           <Link
@@ -261,6 +347,7 @@ export default function EditProduk() {
           </Link>
 
         </div>
+
       </header>
 
       {/* FORM */}
@@ -270,6 +357,7 @@ export default function EditProduk() {
         <div className="rounded-3xl bg-white p-8 shadow-sm">
 
           <div>
+
             <p className="text-sm uppercase tracking-[0.2em] text-[#a27b3f]">
               ID Produk #{product.id}
             </p>
@@ -281,6 +369,7 @@ export default function EditProduk() {
             <p className="mt-2 text-sm text-[#2f241c]/60">
               Ubah informasi produk dan simpan perubahan.
             </p>
+
           </div>
 
           <form
@@ -291,6 +380,7 @@ export default function EditProduk() {
             {/* ID */}
 
             <div>
+
               <label className="text-sm font-medium">
                 ID Produk
               </label>
@@ -305,11 +395,13 @@ export default function EditProduk() {
               <p className="mt-2 text-xs text-[#2f241c]/50">
                 ID tidak dapat diubah.
               </p>
+
             </div>
 
             {/* NAMA */}
 
             <div>
+
               <label className="text-sm font-medium">
                 Nama Produk
               </label>
@@ -321,13 +413,56 @@ export default function EditProduk() {
                   setName(e.target.value)
                 }
                 required
-                className="mt-2 w-full rounded-xl border border-[#2f241c]/20 px-4 py-3 outline-none focus:border-[#a27b3f]"
+                className="mt-2 w-full rounded-xl border border-[#2f241c]/20 px-4 py-3 outline-none transition focus:border-[#a27b3f]"
               />
+
+            </div>
+
+            {/* KATEGORI */}
+
+            <div>
+
+              <label className="text-sm font-medium">
+                Kategori Produk
+              </label>
+
+              <select
+                value={category}
+                onChange={(e) =>
+                  setCategory(e.target.value)
+                }
+                required
+                className="mt-2 w-full rounded-xl border border-[#2f241c]/20 bg-white px-4 py-3 outline-none transition focus:border-[#a27b3f]"
+              >
+
+                <option value="">
+                  Pilih kategori produk
+                </option>
+
+                {categories.map(
+                  (item) => (
+                    <option
+                      key={item}
+                      value={item}
+                    >
+                      {item}
+                    </option>
+                  )
+                )}
+
+              </select>
+
+              <p className="mt-2 text-xs text-[#2f241c]/50">
+                Kategori saat ini akan otomatis
+                dipilih berdasarkan data produk.
+              </p>
+
             </div>
 
             {/* HARGA */}
 
             <div>
+
               <label className="text-sm font-medium">
                 Harga
               </label>
@@ -340,13 +475,15 @@ export default function EditProduk() {
                 }
                 min="0"
                 required
-                className="mt-2 w-full rounded-xl border border-[#2f241c]/20 px-4 py-3 outline-none focus:border-[#a27b3f]"
+                className="mt-2 w-full rounded-xl border border-[#2f241c]/20 px-4 py-3 outline-none transition focus:border-[#a27b3f]"
               />
+
             </div>
 
             {/* STOK */}
 
             <div>
+
               <label className="text-sm font-medium">
                 Jumlah Produk / Stok
               </label>
@@ -359,12 +496,13 @@ export default function EditProduk() {
                 }
                 min="0"
                 required
-                className="mt-2 w-full rounded-xl border border-[#2f241c]/20 px-4 py-3 outline-none focus:border-[#a27b3f]"
+                className="mt-2 w-full rounded-xl border border-[#2f241c]/20 px-4 py-3 outline-none transition focus:border-[#a27b3f]"
               />
 
               <p className="mt-2 text-xs text-[#2f241c]/50">
                 Masukkan jumlah produk yang tersedia.
               </p>
+
             </div>
 
             {/* FOTO */}
@@ -419,7 +557,7 @@ export default function EditProduk() {
                 }
                 rows={5}
                 required
-                className="mt-2 w-full resize-none rounded-xl border border-[#2f241c]/20 px-4 py-3 outline-none focus:border-[#a27b3f]"
+                className="mt-2 w-full resize-none rounded-xl border border-[#2f241c]/20 px-4 py-3 outline-none transition focus:border-[#a27b3f]"
               />
 
             </div>
@@ -437,7 +575,7 @@ export default function EditProduk() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-full bg-[#2f241c] px-6 py-3 font-medium text-white transition hover:bg-[#a27b3f] disabled:opacity-50"
+              className="w-full rounded-full bg-[#2f241c] px-6 py-3 font-medium text-white transition hover:bg-[#a27b3f] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving
                 ? "Menyimpan Perubahan..."

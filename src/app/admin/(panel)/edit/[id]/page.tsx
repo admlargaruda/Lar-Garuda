@@ -257,7 +257,7 @@ export default function EditProduk() {
       // KEMBALI KE DASHBOARD
       // ==============================
 
-      router.push("/admin");
+      router.push("/admin/produk");
       router.refresh();
 
     } catch (err) {
@@ -306,7 +306,7 @@ export default function EditProduk() {
           </p>
 
           <Link
-            href="/admin"
+            href="/admin/produk"
             className="mt-6 inline-block rounded-full bg-[#2f241c] px-6 py-3 text-sm text-white transition hover:bg-[#a27b3f]"
           >
             Kembali ke Dashboard
@@ -340,7 +340,7 @@ export default function EditProduk() {
           </div>
 
           <Link
-            href="/admin"
+            href="/admin/produk"
             className="rounded-full border border-[#2f241c]/20 px-5 py-2 text-sm transition hover:bg-[#2f241c] hover:text-white"
           >
             ← Kembali

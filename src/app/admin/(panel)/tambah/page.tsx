@@ -156,7 +156,7 @@ export default function TambahProduk() {
       }
 
       // Berhasil
-      router.push("/admin");
+      router.push("/admin/produk");
       router.refresh();
     } catch (err) {
       console.error(err);
@@ -187,7 +187,7 @@ export default function TambahProduk() {
           </div>
 
           <Link
-            href="/admin"
+            href="/admin/produk"
             className="rounded-full border border-[#2f241c]/20 px-5 py-2 text-sm transition hover:bg-[#2f241c] hover:text-white"
           >
             ← Kembali

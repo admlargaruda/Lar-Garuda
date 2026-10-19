@@ -194,7 +194,7 @@ export default function AdminOrdersPage() {
 
       <nav className="border-b border-[#2f241c]/10 bg-[#f8f5ef]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <Link href="/admin">
+          <Link href="/admin/produk">
             <h1 className="font-serif text-2xl font-bold tracking-wide">
               LAR GARUDA
             </h1>
@@ -205,7 +205,7 @@ export default function AdminOrdersPage() {
           </Link>
 
           <Link
-            href="/admin"
+            href="/admin/produk"
             className="text-sm transition hover:text-[#a27b3f]"
           >
             ← Dashboard

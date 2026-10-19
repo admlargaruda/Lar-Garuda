@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { ORDER_STATUS, statusClass } from "@/lib/orderStatus";
+import type { OrderStatus } from "@/lib/orderStatus";
 
 type Order = {
   id: string;
@@ -11,6 +13,7 @@ type Order = {
   total_amount: number;
   status: string;
   created_at: string;
+  stock_restored?: boolean;
 };
 
 type OrderItem = {
@@ -30,6 +33,7 @@ export default function AdminOrdersPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // ================================
   // FORMAT RUPIAH
@@ -56,6 +60,12 @@ export default function AdminOrdersPage() {
   };
 
   // ================================
+  // LABEL STATUS (kode database -> teks Indonesia)
+  // ================================
+  const statusLabel = (status: string) =>
+    ORDER_STATUS[status as OrderStatus]?.label ?? status;
+
+  // ================================
   // AMBIL DATA PESANAN
   // ================================
   const loadOrders = async () => {
@@ -64,7 +74,7 @@ export default function AdminOrdersPage() {
     const { data, error } = await supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, total_amount, status, created_at"
+        "id, customer_name, customer_phone, total_amount, status, created_at, stock_restored"
       )
       .order("created_at", {
         ascending: false,
@@ -126,64 +136,80 @@ export default function AdminOrdersPage() {
   // ================================
   // UPDATE STATUS
   // ================================
-  const updateStatus = async (
-    orderId: string,
-    newStatus: string
-  ) => {
-    const { error } = await supabase
-      .from("orders")
-      .update({
-        status: newStatus,
-      })
-      .eq("id", orderId);
+  const updateStatus = async (orderId: string, newStatus: string) => {
+    const order = orders.find((o) => o.id === orderId);
 
-    if (error) {
-      console.error("Gagal mengubah status:", error);
-
-      alert("Gagal mengubah status pesanan.");
-
+    if (!order || order.status === newStatus) return;
+    if (updatingId) return;
+    if (order.status === "completed" && newStatus === "cancelled") {
+      alert("Pesanan yang sudah selesai tidak dapat dibatalkan.");
       return;
     }
 
+    let perubahan: Partial<Order> = { status: newStatus };
+
+    setUpdatingId(orderId);
+
+    // ---------- PEMBATALAN: stok dikembalikan oleh database ----------
+    if (newStatus === "cancelled") {
+      const confirmed = window.confirm(
+        "Apakah Anda yakin ingin membatalkan pesanan ini?\n\nStok produk akan dikembalikan secara otomatis."
+      );
+
+      if (!confirmed) {
+        setUpdatingId(null);
+        return;
+      }
+
+      const { data, error } = await supabase.rpc(
+        "cancel_order_and_restore_stock",
+        {
+          p_order_id: orderId,
+        }
+      );
+
+      if (error || !data) {
+        console.error("Gagal membatalkan pesanan:", error);
+
+        alert(
+          `Gagal membatalkan pesanan: ${
+            error?.message ?? "tidak ada perubahan yang tersimpan"
+          }`
+        );
+
+        setUpdatingId(null);
+        return;
+      }
+
+      perubahan = { status: "cancelled", stock_restored: true };
+    } else {
+      // ---------- STATUS BIASA ----------
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: newStatus })
+        .eq("id", orderId);
+
+      if (error) {
+        console.error("Gagal mengubah status:", error);
+
+        alert(`Gagal mengubah status pesanan: ${error.message}`);
+
+        setUpdatingId(null);
+        return;
+      }
+    }
+
     setOrders((currentOrders) =>
-      currentOrders.map((order) =>
-        order.id === orderId
-          ? {
-              ...order,
-              status: newStatus,
-            }
-          : order
+      currentOrders.map((o) =>
+        o.id === orderId ? { ...o, ...perubahan } : o
       )
     );
 
     if (selectedOrder?.id === orderId) {
-      setSelectedOrder({
-        ...selectedOrder,
-        status: newStatus,
-      });
+      setSelectedOrder({ ...selectedOrder, ...perubahan });
     }
-  };
 
-  // ================================
-  // STATUS BADGE
-  // ================================
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case "Pending":
-        return "bg-yellow-100 text-yellow-700";
-
-      case "Diproses":
-        return "bg-blue-100 text-blue-700";
-
-      case "Selesai":
-        return "bg-green-100 text-green-700";
-
-      case "Dibatalkan":
-        return "bg-red-100 text-red-700";
-
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
+    setUpdatingId(null);
   };
 
   return (
@@ -194,7 +220,7 @@ export default function AdminOrdersPage() {
 
       <nav className="border-b border-[#2f241c]/10 bg-[#f8f5ef]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <Link href="/admin/produk">
+          <Link href="/admin">
             <h1 className="font-serif text-2xl font-bold tracking-wide">
               LAR GARUDA
             </h1>
@@ -205,7 +231,7 @@ export default function AdminOrdersPage() {
           </Link>
 
           <Link
-            href="/admin/produk"
+            href="/admin"
             className="text-sm transition hover:text-[#a27b3f]"
           >
             ← Dashboard
@@ -337,32 +363,34 @@ export default function AdminOrdersPage() {
                       <td className="px-6 py-5">
                         <select
                           value={order.status}
+                          disabled={
+                            order.status === "cancelled" ||
+                            updatingId === order.id
+                          }
                           onChange={(e) =>
                             updateStatus(
                               order.id,
                               e.target.value
                             )
                           }
-                          className={`rounded-full border-0 px-3 py-2 text-xs font-semibold outline-none ${getStatusClass(
+                          className={`rounded-full border-0 px-3 py-2 text-xs font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-80 ${statusClass(
                             order.status
                           )}`}
                         >
-                          <option value="Pending">
-                            Pending
-                          </option>
-
-                          <option value="Diproses">
-                            Diproses
-                          </option>
-
-                          <option value="Selesai">
-                            Selesai
-                          </option>
-
-                          <option value="Dibatalkan">
-                            Dibatalkan
-                          </option>
+                          {Object.entries(ORDER_STATUS).map(
+                            ([value, s]) => (
+                              <option key={value} value={value}>
+                                {s.label}
+                              </option>
+                            )
+                          )}
                         </select>
+
+                        {order.stock_restored && (
+                          <p className="mt-2 text-xs font-medium text-red-600">
+                            Stok telah dikembalikan
+                          </p>
+                        )}
                       </td>
 
                       {/* TANGGAL */}
@@ -437,11 +465,11 @@ export default function AdminOrdersPage() {
                 </span>
 
                 <span
-                  className={`rounded-full px-3 py-2 text-xs font-semibold ${getStatusClass(
+                  className={`rounded-full px-3 py-2 text-xs font-semibold ${statusClass(
                     selectedOrder.status
                   )}`}
                 >
-                  {selectedOrder.status}
+                  {statusLabel(selectedOrder.status)}
                 </span>
               </div>
 
@@ -456,6 +484,12 @@ export default function AdminOrdersPage() {
                   )}
                 </span>
               </div>
+
+              {selectedOrder.stock_restored && (
+                <p className="mt-4 text-xs font-medium text-red-600">
+                  Stok telah dikembalikan
+                </p>
+              )}
             </div>
 
             {/* PRODUK */}
@@ -533,29 +567,25 @@ export default function AdminOrdersPage() {
 
               <select
                 value={selectedOrder.status}
+                disabled={
+                  selectedOrder.status === "cancelled" ||
+                  updatingId === selectedOrder.id
+                }
                 onChange={(e) =>
                   updateStatus(
                     selectedOrder.id,
                     e.target.value
                   )
                 }
-                className="mt-2 w-full rounded-2xl border border-[#2f241c]/20 bg-white px-4 py-3 outline-none focus:border-[#a27b3f]"
+                className="mt-2 w-full rounded-2xl border border-[#2f241c]/20 bg-white px-4 py-3 outline-none focus:border-[#a27b3f] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <option value="Pending">
-                  Pending
-                </option>
-
-                <option value="Diproses">
-                  Diproses
-                </option>
-
-                <option value="Selesai">
-                  Selesai
-                </option>
-
-                <option value="Dibatalkan">
-                  Dibatalkan
-                </option>
+                {Object.entries(ORDER_STATUS).map(
+                  ([value, s]) => (
+                    <option key={value} value={value}>
+                      {s.label}
+                    </option>
+                  )
+                )}
               </select>
             </div>
 

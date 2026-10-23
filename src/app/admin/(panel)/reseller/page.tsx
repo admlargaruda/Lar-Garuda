@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { CATEGORIES } from "@/lib/categories";
 
 type Tier = {
   id: number;
@@ -18,6 +19,12 @@ type Reseller = {
   joined_at: string;
   notes: string | null;
   created_at: string;
+};
+
+type PriceRow = {
+  category: string;
+  tier_id: number;
+  price: number;
 };
 
 type FormState = {
@@ -53,16 +60,17 @@ export default function ResellerPage() {
   const [formError, setFormError] = useState("");
   const [menyimpan, setMenyimpan] = useState(false);
 
-  // Pengaturan diskon kelas
-  const [diskonInput, setDiskonInput] = useState<Record<number, string>>({});
-  const [diskonPesan, setDiskonPesan] = useState("");
-  const [diskonMenyimpan, setDiskonMenyimpan] = useState<number | null>(null);
+  // Harga reseller per kategori dan kelas (kunci: "Kategori|idKelas")
+  const [hargaTersimpan, setHargaTersimpan] = useState<Record<string, number>>({});
+  const [hargaInput, setHargaInput] = useState<Record<string, string>>({});
+  const [hargaPesan, setHargaPesan] = useState("");
+  const [hargaMenyimpan, setHargaMenyimpan] = useState(false);
 
   // ================================
   // AMBIL DATA
   // ================================
   const loadAll = async () => {
-    const [tierRes, resellerRes] = await Promise.all([
+    const [tierRes, resellerRes, priceRes] = await Promise.all([
       supabase
         .from("reseller_tiers")
         .select("id, name, discount_percent, sort_order")
@@ -71,19 +79,16 @@ export default function ResellerPage() {
         .from("resellers")
         .select("id, name, phone, tier_id, joined_at, notes, created_at")
         .order("name", { ascending: true }),
+      supabase
+        .from("category_tier_prices")
+        .select("category, tier_id, price"),
     ]);
 
     if (tierRes.error) {
       console.error("Gagal mengambil kelas:", tierRes.error);
       alert(`Gagal mengambil kelas reseller: ${tierRes.error.message}`);
     } else {
-      const data = (tierRes.data || []) as Tier[];
-      setTiers(data);
-      setDiskonInput(
-        Object.fromEntries(
-          data.map((t) => [t.id, String(t.discount_percent)])
-        )
-      );
+      setTiers((tierRes.data || []) as Tier[]);
     }
 
     if (resellerRes.error) {
@@ -91,6 +96,23 @@ export default function ResellerPage() {
       alert(`Gagal mengambil reseller: ${resellerRes.error.message}`);
     } else {
       setResellers((resellerRes.data || []) as Reseller[]);
+    }
+
+    if (priceRes.error) {
+      console.error("Gagal mengambil harga reseller:", priceRes.error);
+      alert(`Gagal mengambil harga reseller: ${priceRes.error.message}`);
+    } else {
+      const tersimpan: Record<string, number> = {};
+      const input: Record<string, string> = {};
+
+      ((priceRes.data || []) as PriceRow[]).forEach((p) => {
+        const kunci = `${p.category}|${p.tier_id}`;
+        tersimpan[kunci] = Number(p.price);
+        input[kunci] = String(Number(p.price));
+      });
+
+      setHargaTersimpan(tersimpan);
+      setHargaInput(input);
     }
 
     setLoading(false);
@@ -286,43 +308,80 @@ export default function ResellerPage() {
   };
 
   // ================================
-  // SIMPAN DISKON KELAS
+  // SIMPAN HARGA RESELLER
   // ================================
-  const simpanDiskon = async (tier: Tier) => {
-    setDiskonPesan("");
+  const simpanHarga = async () => {
+    setHargaPesan("");
 
-    const nilai = Number(diskonInput[tier.id]);
-    if (
-      diskonInput[tier.id] === "" ||
-      Number.isNaN(nilai) ||
-      nilai < 0 ||
-      nilai > 100
-    ) {
-      setDiskonPesan(`Diskon ${tier.name} harus berupa angka 0 sampai 100.`);
-      return;
+    const upserts: PriceRow[] = [];
+    const hapusKunci: string[] = [];
+
+    for (const kategori of CATEGORIES) {
+      for (const t of tiers) {
+        const kunci = `${kategori}|${t.id}`;
+        const teks = (hargaInput[kunci] ?? "").trim();
+
+        if (teks === "") {
+          if (kunci in hargaTersimpan) hapusKunci.push(kunci);
+          continue;
+        }
+
+        const nilai = Number(teks);
+        if (Number.isNaN(nilai) || nilai < 0) {
+          setHargaPesan(
+            `Harga ${kategori} kelas ${t.name} harus berupa angka 0 atau lebih.`
+          );
+          return;
+        }
+
+        upserts.push({ category: kategori, tier_id: t.id, price: nilai });
+      }
     }
 
-    setDiskonMenyimpan(tier.id);
+    setHargaMenyimpan(true);
 
-    const { error } = await supabase
-      .from("reseller_tiers")
-      .update({ discount_percent: nilai })
-      .eq("id", tier.id);
+    if (upserts.length > 0) {
+      const { error } = await supabase
+        .from("category_tier_prices")
+        .upsert(upserts, { onConflict: "category,tier_id" });
 
-    setDiskonMenyimpan(null);
-
-    if (error) {
-      console.error("Gagal menyimpan diskon:", error);
-      setDiskonPesan(`Gagal menyimpan diskon ${tier.name}: ${error.message}`);
-      return;
+      if (error) {
+        console.error("Gagal menyimpan harga:", error);
+        setHargaPesan(`Gagal menyimpan harga: ${error.message}`);
+        setHargaMenyimpan(false);
+        return;
+      }
     }
 
-    setTiers((sekarang) =>
-      sekarang.map((t) =>
-        t.id === tier.id ? { ...t, discount_percent: nilai } : t
-      )
+    for (const kunci of hapusKunci) {
+      const [kategori, tierId] = kunci.split("|");
+
+      const { error } = await supabase
+        .from("category_tier_prices")
+        .delete()
+        .eq("category", kategori)
+        .eq("tier_id", Number(tierId));
+
+      if (error) {
+        console.error("Gagal menghapus harga:", error);
+        setHargaPesan(`Gagal menghapus harga ${kategori}: ${error.message}`);
+        setHargaMenyimpan(false);
+        return;
+      }
+    }
+
+    const tersimpanBaru: Record<string, number> = {};
+    upserts.forEach((p) => {
+      tersimpanBaru[`${p.category}|${p.tier_id}`] = p.price;
+    });
+
+    setHargaTersimpan(tersimpanBaru);
+    setHargaMenyimpan(false);
+    setHargaPesan(
+      `Harga tersimpan (${upserts.length} harga terisi, ${
+        CATEGORIES.length * tiers.length - upserts.length
+      } memakai harga umum).`
     );
-    setDiskonPesan(`Diskon ${tier.name} tersimpan: ${nilai}%.`);
   };
 
   return (
@@ -374,55 +433,81 @@ export default function ResellerPage() {
           </div>
         </div>
 
-        {/* DISKON KELAS */}
+        {/* HARGA RESELLER PER KATEGORI */}
 
         <div className="mt-8 rounded-3xl bg-white p-6 shadow-sm">
           <h2 className="font-serif text-xl font-bold">
-            Diskon tiap kelas
+            Harga reseller per kategori
           </h2>
 
           <p className="mt-1 text-sm text-[#2f241c]/60">
-            Potongan dari harga umum untuk reseller di kelas tersebut.
-            Diisi 0 sampai UMKM menentukan besarnya.
+            Isi harga per pcs dalam rupiah penuh, misalnya 145000. Kolom yang
+            dikosongkan memakai harga umum produk.
           </p>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            {tiers.map((t) => (
-              <div key={t.id} className="rounded-2xl bg-[#f8f5ef] p-4">
-                <p className="text-sm font-semibold">{t.name}</p>
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[520px]">
+              <thead>
+                <tr className="border-b border-[#2f241c]/10 bg-[#e5ded3] text-left text-sm">
+                  <th className="px-4 py-3">Kategori</th>
+                  {tiers.map((t) => (
+                    <th key={t.id} className="px-4 py-3">
+                      {t.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-                <div className="mt-3 flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.5"
-                    value={diskonInput[t.id] ?? ""}
-                    onChange={(e) =>
-                      setDiskonInput((sekarang) => ({
-                        ...sekarang,
-                        [t.id]: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-xl border border-[#2f241c]/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#a27b3f]"
-                  />
-                  <span className="text-sm">%</span>
-                </div>
+              <tbody>
+                {CATEGORIES.map((kategori) => (
+                  <tr
+                    key={kategori}
+                    className="border-b border-[#2f241c]/10 last:border-b-0"
+                  >
+                    <td className="px-4 py-3 text-sm font-medium">
+                      {kategori}
+                    </td>
 
-                <button
-                  type="button"
-                  onClick={() => simpanDiskon(t)}
-                  disabled={diskonMenyimpan === t.id}
-                  className="mt-3 w-full rounded-full bg-[#2f241c] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#a27b3f] disabled:opacity-50"
-                >
-                  {diskonMenyimpan === t.id ? "Menyimpan..." : "Simpan diskon"}
-                </button>
-              </div>
-            ))}
+                    {tiers.map((t) => {
+                      const kunci = `${kategori}|${t.id}`;
+
+                      return (
+                        <td key={t.id} className="px-4 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            inputMode="numeric"
+                            value={hargaInput[kunci] ?? ""}
+                            onChange={(e) =>
+                              setHargaInput((sekarang) => ({
+                                ...sekarang,
+                                [kunci]: e.target.value,
+                              }))
+                            }
+                            placeholder="Harga umum"
+                            className="w-full min-w-[110px] rounded-xl border border-[#2f241c]/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#a27b3f]"
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          {diskonPesan && (
-            <p className="mt-4 text-sm text-[#a27b3f]">{diskonPesan}</p>
+          <button
+            type="button"
+            onClick={simpanHarga}
+            disabled={hargaMenyimpan || tiers.length === 0}
+            className="mt-5 rounded-full bg-[#2f241c] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#a27b3f] disabled:opacity-50"
+          >
+            {hargaMenyimpan ? "Menyimpan..." : "Simpan harga"}
+          </button>
+
+          {hargaPesan && (
+            <p className="mt-4 text-sm text-[#a27b3f]">{hargaPesan}</p>
           )}
         </div>
 

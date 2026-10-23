@@ -151,7 +151,7 @@ export default function ProdukPage() {
 
         {loading ? (
 
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6">
 
             {[1, 2, 3, 4, 5, 6].map(
               (item) => (
@@ -183,7 +183,7 @@ export default function ProdukPage() {
 
         ) : (
 
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6">
 
             {categories.map(
               (category, categoryIndex) => (
@@ -292,7 +292,7 @@ function CategoryCard({
           FOTO PRODUK
       ================================================= */}
 
-      <div className="relative h-[360px] overflow-hidden bg-[#e5ded3]">
+      <div className="relative h-[260px] overflow-hidden bg-[#e5ded3] sm:h-[360px]">
 
         <img
           key={currentProduct.id}
@@ -321,13 +321,13 @@ function CategoryCard({
             INFORMASI
         ================================================= */}
 
-        <div className="absolute bottom-0 left-0 right-0 p-7 text-white">
+        <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-7 text-white">
 
           <p className="text-xs uppercase tracking-[0.25em] text-white/60">
             Koleksi
           </p>
 
-          <h3 className="mt-2 font-serif text-3xl font-bold">
+          <h3 className="mt-2 break-words font-serif text-lg font-bold sm:text-3xl">
             {category.category}
           </h3>
 

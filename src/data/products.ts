@@ -5,4 +5,10 @@ export type Product = {
   image: string;
   description: string;
   stock: number;
+  category: string;
+};
+
+export type CategoryPreview = {
+  category: string;
+  products: Product[];
 };

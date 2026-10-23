@@ -24,6 +24,7 @@ export default function TambahProduk() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
+  const [stock, setStock] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
   const [description, setDescription] = useState("");
@@ -76,6 +77,13 @@ export default function TambahProduk() {
 
       if (!price || Number(price) <= 0) {
         setError("Harga produk harus lebih dari 0.");
+        setLoading(false);
+        return;
+      }
+
+      // Validasi stok: wajib diisi, bilangan bulat, tidak boleh negatif
+      if (stock === "" || !Number.isInteger(Number(stock)) || Number(stock) < 0) {
+        setError("Jumlah stok wajib diisi dengan angka bulat 0 atau lebih.");
         setLoading(false);
         return;
       }
@@ -134,6 +142,7 @@ export default function TambahProduk() {
               name: name.trim(),
               category: category,
               price: Number(price),
+              stock: Number(stock),
               image: imageUrl,
               description: description.trim(),
             },
@@ -178,7 +187,7 @@ export default function TambahProduk() {
 
           <div>
             <h1 className="font-serif text-2xl font-bold">
-              LAR GARUDA
+              LAR GURDA
             </h1>
 
             <p className="text-xs uppercase tracking-[0.2em] text-[#2f241c]/50">
@@ -208,7 +217,7 @@ export default function TambahProduk() {
 
             <p className="mt-2 text-sm text-[#2f241c]/60">
               Masukkan informasi produk baru ke katalog
-              Lar Garuda.
+              Lar Gurda.
             </p>
           </div>
 
@@ -298,6 +307,32 @@ export default function TambahProduk() {
                   }).format(Number(price))}
                 </p>
               )}
+            </div>
+
+            {/* JUMLAH STOK */}
+            <div>
+              <label className="text-sm font-medium">
+                Jumlah Stok
+              </label>
+
+              <input
+                type="number"
+                value={stock}
+                onChange={(e) =>
+                  setStock(e.target.value)
+                }
+                placeholder="Contoh: 20"
+                min="0"
+                step="1"
+                inputMode="numeric"
+                required
+                className="mt-2 w-full rounded-xl border border-[#2f241c]/20 px-4 py-3 outline-none transition focus:border-[#a27b3f]"
+              />
+
+              <p className="mt-2 text-xs text-[#2f241c]/50">
+                Jumlah barang yang tersedia saat ini. Stok akan
+                berkurang otomatis saat ada pesanan.
+              </p>
             </div>
 
             {/* FOTO PRODUK */}

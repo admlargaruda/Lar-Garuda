@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import Navbar from "@/components/Navbar";
+
 
 type Product = {
   id: number;
@@ -74,60 +76,18 @@ export default function ProdukPage() {
 
   return (
     <main className="min-h-screen bg-[#f8f5ef] text-[#2f241c]">
-
-      {/* =====================================================
-          NAVBAR
-      ===================================================== */}
-
-      <nav className="sticky top-0 z-50 border-b border-[#2f241c]/10 bg-[#f8f5ef]/95 backdrop-blur-md">
-
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-6">
-
-          <Link
-            href="/"
-            className="text-center"
-          >
-            <h1 className="font-serif text-2xl font-bold tracking-wide">
-              LAR GARUDA
-            </h1>
-
-            <p className="text-[9px] uppercase tracking-[0.3em] text-[#2f241c]/60">
-              Sarung Indonesia
-            </p>
-          </Link>
-
-          <div className="flex items-center gap-3">
-
-            <Link
-              href="/"
-              className="hidden rounded-full px-5 py-2 text-sm font-medium transition hover:bg-[#e5ded3] sm:block"
-            >
-              Beranda
-            </Link>
-
-            <Link
-              href="/keranjang"
-              className="rounded-full border border-[#2f241c]/20 px-4 py-2 text-sm font-medium transition hover:bg-[#2f241c] hover:text-white sm:px-5"
-            >
-              🛒 Keranjang
-            </Link>
-
-          </div>
-
-        </div>
-
-      </nav>
-
+     <Navbar />
+     
       {/* =====================================================
           HEADER
       ===================================================== */}
 
-      <section className="mx-auto max-w-7xl px-5 pb-12 pt-16 sm:px-6">
+      <section className="mx-auto max-w-7xl px-5 pb-12 pt-6 sm:px-6">
 
         <div className="text-center">
 
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#a27b3f]">
-            Koleksi Lar Garuda
+            Koleksi Lar Gurda
           </p>
 
           <h2 className="mt-4 font-serif text-4xl font-bold sm:text-5xl">
@@ -135,7 +95,7 @@ export default function ProdukPage() {
           </h2>
 
           <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-[#2f241c]/60">
-            Jelajahi koleksi sarung Lar Garuda
+            Jelajahi koleksi sarung Lar Gurda
             berdasarkan kategori.
           </p>
 
@@ -210,7 +170,7 @@ export default function ProdukPage() {
       <footer className="bg-[#2f241c] px-6 py-10 text-center text-white">
 
         <p className="font-serif text-xl font-bold">
-          LAR GARUDA
+          LAR GURDA
         </p>
 
         <p className="mt-2 text-xs uppercase tracking-[0.25em] text-white/40">
@@ -220,7 +180,7 @@ export default function ProdukPage() {
         <div className="mx-auto my-6 h-px w-12 bg-[#a27b3f]" />
 
         <p className="text-xs text-white/40">
-          © 2026 Lar Garuda. All rights reserved.
+          © 2026 Lar Gurda. All rights reserved.
         </p>
 
       </footer>
@@ -378,5 +338,6 @@ function CategoryCard({
       </div>
 
     </Link>
+    
   );
 }

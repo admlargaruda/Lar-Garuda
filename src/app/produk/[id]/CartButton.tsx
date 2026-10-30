@@ -25,7 +25,7 @@ export default function CartButton({
   const [added, setAdded] = useState(false);
 
   const addToCart = () => {
-    const savedCart = localStorage.getItem("lar-garuda-cart");
+    const savedCart = localStorage.getItem("lar-gurda-cart");
 
     let cart: CartItem[] = [];
 
@@ -55,7 +55,7 @@ export default function CartButton({
     }
 
     localStorage.setItem(
-      "lar-garuda-cart",
+      "lar-gurda-cart",
       JSON.stringify(cart)
     );
 

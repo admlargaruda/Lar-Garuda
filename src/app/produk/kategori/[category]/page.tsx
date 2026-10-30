@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import Navbar from "@/components/Navbar";
 
 type Product = {
   id: number;
@@ -88,37 +89,7 @@ export default function CategoryProductsPage() {
 
   return (
     <main className="min-h-screen bg-[#f8f5ef] text-[#2f241c]">
-
-      {/* =====================================================
-          NAVBAR
-      ===================================================== */}
-
-      <nav className="border-b border-[#2f241c]/10 bg-[#f8f5ef]">
-
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-
-          <Link href="/" className="block">
-
-            <h1 className="font-serif text-2xl font-bold tracking-wide">
-              LAR GARUDA
-            </h1>
-
-            <p className="text-[10px] uppercase tracking-[0.3em]">
-              Sarung Indonesia
-            </p>
-
-          </Link>
-
-          <Link
-            href="/keranjang"
-            className="text-sm transition hover:text-[#a27b3f]"
-          >
-            Keranjang
-          </Link>
-
-        </div>
-
-      </nav>
+      <Navbar />
 
       {/* =====================================================
           HEADER
@@ -134,7 +105,7 @@ export default function CategoryProductsPage() {
         </Link>
 
         <p className="mt-8 text-sm uppercase tracking-[0.3em] text-[#a27b3f]">
-          Koleksi Lar Garuda
+          Koleksi Lar Gurda
         </p>
 
         <h1 className="mt-3 font-serif text-4xl font-bold md:text-5xl">
@@ -268,7 +239,7 @@ export default function CategoryProductsPage() {
       ===================================================== */}
 
       <footer className="bg-[#2f241c] px-6 py-8 text-center text-sm text-white/60">
-        © 2026 Lar Garuda. All rights reserved.
+        © 2026 Lar Gurda. All rights reserved.
       </footer>
 
     </main>

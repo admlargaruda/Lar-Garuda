@@ -238,7 +238,7 @@ export default function TambahProduk() {
                 onChange={(e) =>
                   setName(e.target.value)
                 }
-                placeholder="Contoh: Kelengan Motif Garuda"
+                placeholder="Contoh: Kelengan Motif Gurda"
                 required
                 className="mt-2 w-full rounded-xl border border-[#2f241c]/20 px-4 py-3 outline-none transition focus:border-[#a27b3f]"
               />

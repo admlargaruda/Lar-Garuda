@@ -48,26 +48,32 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
 
   return (
     <div>
-      <nav className="sticky top-0 z-10 flex items-center gap-2 overflow-x-auto border-b border-black/10 bg-white px-4 py-3">
-        {menu.map((m) => (
-          <Link
-            key={m.href}
-            href={m.href}
-            className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium ${
-              aktif(m.cocok) ? "bg-[#2f241c] text-white" : "text-[#2f241c] hover:bg-black/5"
-            }`}
-          >
-            {m.label}
-          </Link>
-        ))}
-        <button
-          type="button"
-          onClick={keluar}
-          className="ml-auto whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-        >
-          Keluar
-        </button>
-      </nav>
+      <nav className="sticky top-0 z-10 border-b border-black/10 bg-white px-2 py-1.5 sm:px-4 sm:py-3">
+  <div className="grid grid-cols-2 gap-1 sm:flex sm:items-center sm:gap-2">
+    {menu.map((m) => (
+      <Link
+        key={m.href}
+        href={m.href}
+        className={`flex items-center justify-center whitespace-nowrap rounded-full px-2 py-1.5 text-center text-[10px] font-medium transition sm:px-4 sm:py-2 sm:text-sm ${
+          aktif(m.cocok)
+            ? "bg-[#2f241c] text-white"
+            : "text-[#2f241c] hover:bg-black/5"
+        }`}
+      >
+        {m.label}
+      </Link>
+    ))}
+
+    <button
+      type="button"
+      onClick={keluar}
+      className="col-span-2 rounded-full px-2 py-1 text-[10px] font-medium text-red-600 transition hover:bg-red-50 sm:ml-auto sm:col-span-1 sm:px-4 sm:py-2 sm:text-sm"
+    >
+      Keluar
+    </button>
+  </div>
+</nav>
+
       {children}
     </div>
   );

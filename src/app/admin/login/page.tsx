@@ -38,7 +38,7 @@ export default function AdminLogin() {
 
         <div className="text-center">
           <h1 className="font-serif text-3xl font-bold">
-            LAR GARUDA
+            LAR GURDA
           </h1>
 
           <p className="mt-2 text-sm text-[#2f241c]/60">

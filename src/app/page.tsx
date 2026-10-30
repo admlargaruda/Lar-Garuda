@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import type { Product } from "@/data/products";
 import { supabase } from "@/lib/supabase";
+import Image from "next/image";
+import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 
 
 type CategoryGroup = {
@@ -12,32 +15,72 @@ type CategoryGroup = {
   products: Product[];
 };
 
+const WHATSAPP_NUMBER = "6281333888009";
+
+const MENU_LINKS = [
+  { href: "/", label: "Beranda", note: "Halaman utama" },
+  { href: "/produk", label: "Produk", note: "Koleksi sarung pilihan" },
+  { href: "/#tentang", label: "Tentang Kami", note: "Kenali Lar Gurda" },
+  { href: "/#kontak", label: "Kontak", note: "Hubungi kami" },
+];
+
 export default function Home() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [imageRotation, setImageRotation] = useState(0);
   const categoryCarouselRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
-const scrollCategories = (direction: "left" | "right") => {
-  const container = categoryCarouselRef.current;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  if (!container) return;
+  // Tutup menu saat pindah halaman
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
-  container.scrollBy({
-    left:
-      direction === "left"
-        ? -container.clientWidth * 0.8
-        : container.clientWidth * 0.8,
-    behavior: "smooth",
-  });
-};
+  // Escape menutup menu, dan halaman di belakang tidak ikut bergulir
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+
+    document.addEventListener("keydown", onKey);
+
+    const sebelumnya = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = sebelumnya;
+    };
+  }, [menuOpen]);
+
+  const scrollCategories = (direction: "left" | "right") => {
+    const container = categoryCarouselRef.current;
+    if (!container) return;
+
+    container.scrollBy({
+      left:
+        direction === "left"
+          ? -container.clientWidth * 0.8
+          : container.clientWidth * 0.8,
+      behavior: "smooth",
+    });
+  };
+
+  // ...useEffect updateCartCount, fetchProducts, dan lainnya tetap seperti semula
 
   useEffect(() => {
     const updateCartCount = () => {
-      const savedCart = localStorage.getItem("lar-garuda-cart");
+      const savedCart = localStorage.getItem("lar-gurda-cart");
 
       if (!savedCart) {
         setCartCount(0);
@@ -142,37 +185,188 @@ const scrollCategories = (direction: "left" | "right") => {
 
   return (
     <main className="min-h-screen bg-[#f8f5ef] text-[#2f241c]">
-      {/* NAVBAR */}
-      <nav className="sticky top-0 z-50 border-b border-[#2f241c]/10 bg-[#f8f5ef]/95 backdrop-blur-md">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6">
-          <div className="relative flex h-20 items-center justify-between">
-
-            <Link
-              href="/"
-              className="absolute left-1/2 -translate-x-1/2 text-center md:static md:translate-x-0"
+          {/* NAVBAR */}
+          <nav className="sticky top-0 z-50 border-b border-[#2f241c]/10 bg-[#f8f5ef]/95 backdrop-blur-md">
+            <div className="mx-auto max-w-7xl px-5 sm:px-6">
+              {/* 1. tambah gap-6: jarak minimal antara logo dan menu */}
+              <div className="relative flex h-20 items-center justify-between gap-6">
+                            {/* TOMBOL HAMBURGER (hanya di layar HP) */}
+            <button
+              type="button"
+              aria-label="Buka menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+               className="flex h-11 w-11 items-center justify-center rounded-full border border-[#2f241c]/15 bg-white/60 transition active:scale-95 md:hidden"
             >
-              <h1 className="font-serif text-2xl font-bold tracking-wide">
-                LAR GARUDA
-              </h1>
-              <p className="text-[9px] uppercase tracking-[0.3em] text-[#2f241c]/60">
-                Sarung Indonesia
-              </p>
-            </Link>
+              <span className="flex w-5 flex-col gap-[5px]">
+                <span className="h-[2px] w-full rounded bg-[#2f241c]" />
+                <span className="h-[2px] w-3/4 self-end rounded bg-[#a27b3f]" />
+                <span className="h-[2px] w-full rounded bg-[#2f241c]" />
+              </span>
+            </button>
 
-            <div className="hidden items-center gap-8 text-sm md:flex">
-              <Link href="/" className="transition hover:text-[#a27b3f]">
-                Beranda
-              </Link>
-              <Link href="/produk" className="transition hover:text-[#a27b3f]">
-                Produk
-              </Link>
-              <a href="#tentang" className="transition hover:text-[#a27b3f]">
-                Tentang Kami
-              </a>
-              <a href="#kontak" className="transition hover:text-[#a27b3f]">
-                Kontak
-              </a>
-            </div>
+            {mounted &&
+              createPortal(
+                <div
+                  className={`fixed inset-0 z-[60] md:hidden ${
+                    menuOpen ? "" : "pointer-events-none"
+                  }`}
+                  aria-hidden={!menuOpen}
+                >
+                  {/* LATAR GELAP */}
+                  <div
+                    onClick={() => setMenuOpen(false)}
+                    className={`absolute inset-0 bg-[#2f241c]/50 backdrop-blur-sm transition-opacity duration-300 ${
+                      menuOpen ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+
+                  {/* PANEL */}
+                  <aside
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Menu navigasi"
+                    className={`absolute left-0 top-0 flex h-full w-[84%] max-w-sm flex-col bg-[#f8f5ef] shadow-2xl transition-transform duration-500 ease-out ${
+                      menuOpen ? "translate-x-0" : "-translate-x-full"
+                    }`}
+                  >
+                    <div className="h-1 w-full bg-gradient-to-r from-[#a27b3f] via-[#d6b97b] to-[#a27b3f]" />
+
+                    {/* KEPALA */}
+                    <div className="flex items-center justify-between px-6 py-5">
+                      <div>
+                        <p className="font-serif text-xl font-bold tracking-wide">
+                          LAR GURDA
+                        </p>
+
+                        <p className="text-[9px] uppercase tracking-[0.3em] text-[#2f241c]/60">
+                          Sarung Indonesia
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        aria-label="Tutup menu"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex h-10 w-10 items-center justify-center rounded-full border border-[#2f241c]/15 text-xl transition active:scale-95 hover:bg-[#2f241c] hover:text-white"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    {/* DAFTAR MENU */}
+                    <nav className="flex-1 overflow-y-auto px-6">
+                      <ul>
+                        {MENU_LINKS.map((l, i) => {
+                          const aktif = pathname === l.href;
+
+                          return (
+                            <li
+                              key={l.href}
+                              className={`transition-all duration-500 ${
+                                menuOpen
+                                  ? "translate-x-0 opacity-100"
+                                  : "-translate-x-8 opacity-0"
+                              }`}
+                              style={{
+                                transitionDelay: menuOpen ? `${150 + i * 70}ms` : "0ms",
+                              }}
+                            >
+                              <Link
+                                href={l.href}
+                                onClick={() => setMenuOpen(false)}
+                                className="group flex items-center gap-4 border-b border-[#2f241c]/10 py-5"
+                              >
+                                <span className="font-serif text-sm text-[#a27b3f]">
+                                  {String(i + 1).padStart(2, "0")}
+                                </span>
+
+                                <span className="flex-1">
+                                  <span
+                                    className={`block font-serif text-2xl font-bold transition group-hover:text-[#a27b3f] ${
+                                      aktif ? "text-[#a27b3f]" : ""
+                                    }`}
+                                  >
+                                    {l.label}
+                                  </span>
+
+                                  <span className="block text-xs text-[#2f241c]/50">
+                                    {l.note}
+                                  </span>
+                                </span>
+
+                                <span className="text-[#a27b3f] transition group-hover:translate-x-1">
+                                  →
+                                </span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </nav>
+
+                    {/* TOMBOL AKSI */}
+                    <div
+                      className="space-y-3 border-t border-[#2f241c]/10 px-6 pt-5"
+                      style={{
+                        paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
+                      }}
+                    >
+                      <Link
+                        href="/keranjang"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex w-full items-center justify-center rounded-full border border-[#2f241c] px-6 py-3 text-sm font-medium transition hover:bg-[#2f241c] hover:text-white"
+                      >
+                        Lihat Keranjang
+                      </Link>
+
+                      <a
+                        href={`https://wa.me/${WHATSAPP_NUMBER}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex w-full items-center justify-center rounded-full bg-[#2f241c] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#a27b3f]"
+                      >
+                        Hubungi via WhatsApp
+                      </a>
+
+                      <p className="pt-1 text-center text-[10px] uppercase tracking-[0.3em] text-[#2f241c]/40">
+                        Koleksi Sarung Indonesia
+                      </p>
+                    </div>
+                  </aside>
+                </div>,
+                document.body
+              )}
+
+                {/* 2. tambah shrink-0: logo tidak terhimpit */}
+                <Link
+                  href="/"
+                  className="absolute left-1/2 shrink-0 -translate-x-1/2 text-center md:static md:translate-x-0"
+                >
+                  <h1 className="font-serif text-2xl font-bold tracking-wide">
+                    LAR GURDA
+                  </h1>
+                  <p className="text-[9px] uppercase tracking-[0.3em] text-[#2f241c]/60">
+                    Sarung Indonesia
+                  </p>
+                </Link>
+
+                {/* 3. gap-8 diganti gap-5 lg:gap-8, tambah whitespace-nowrap */}
+                <div className="hidden items-center gap-5 whitespace-nowrap text-sm md:flex lg:gap-8">
+                  <Link href="/" className="transition hover:text-[#a27b3f]">
+                    Beranda
+                  </Link>
+                  <Link href="/produk" className="transition hover:text-[#a27b3f]">
+                    Produk
+                  </Link>
+                  <a href="#tentang" className="transition hover:text-[#a27b3f]">
+                    Tentang Kami
+                  </a>
+                  <a href="#kontak" className="transition hover:text-[#a27b3f]">
+                    Kontak
+                  </a>
+                </div>
+                
 
             <Link
               href="/keranjang"
@@ -244,7 +438,7 @@ const scrollCategories = (direction: "left" | "right") => {
           <p className="mt-7 max-w-lg text-base leading-8 text-[#2f241c]/65">
             Hadirkan kenyamanan, karakter, dan keindahan
             budaya Indonesia dalam setiap momen bersama
-            sarung pilihan Lar Garuda.
+            sarung pilihan Lar Gurda.
           </p>
 
           <div className="mt-9 flex flex-wrap gap-4">
@@ -273,7 +467,7 @@ const scrollCategories = (direction: "left" | "right") => {
             </div>
             <div>
               <p className="font-serif text-2xl font-bold">Lar</p>
-              <p className="mt-1 text-xs text-[#2f241c]/50">Garuda</p>
+              <p className="mt-1 text-xs text-[#2f241c]/50">Gurda</p>
             </div>
           </div>
         </div>
@@ -283,16 +477,15 @@ const scrollCategories = (direction: "left" | "right") => {
           <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full border border-[#a27b3f]/30" />
           <div className="absolute -bottom-5 -left-5 h-28 w-28 rounded-full bg-[#a27b3f]/10" />
 
-          <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] bg-[#ded5c7] shadow-2xl">
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#e7dfd3] via-[#d8cbbb] to-[#c5b39d]">
-              <div className="text-center">
-                <div className="mb-5 text-7xl">🧵</div>
-                <p className="font-serif text-2xl font-bold">LAR GARUDA</p>
-                <p className="mt-2 text-sm text-[#2f241c]/55">
-                  Koleksi Sarung Indonesia
-                </p>
-              </div>
-            </div>
+          <div className="relative aspect-[5/5] overflow-hidden rounded-[2rem] bg-[#ded5c7] shadow-2xl">
+            <Image
+              src="/products/logo-lar-gurda.jpg"
+              alt="Logo Lar Gurda"
+              fill
+              priority
+              sizes="(min-width: 768px) 45vw, 90vw"
+              className="object-cover"
+            />
 
             <div className="absolute bottom-5 left-5 right-5 rounded-2xl bg-white/90 p-4 shadow-lg backdrop-blur">
               <p className="text-xs uppercase tracking-[0.2em] text-[#a27b3f]">
@@ -316,13 +509,13 @@ const scrollCategories = (direction: "left" | "right") => {
 
         <div className="relative mx-auto max-w-4xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#c8a66a]">
-            Tentang Lar Garuda
+            Tentang Lar Gurda
           </p>
           <h2 className="mt-5 font-serif text-4xl font-bold sm:text-5xl">
             Tradisi yang Terus Hidup
           </h2>
           <p className="mx-auto mt-7 max-w-2xl text-base leading-8 text-white/65">
-            Lar Garuda hadir membawa produk sarung yang
+            Lar Gurda hadir membawa produk sarung yang
             menggabungkan nilai tradisi, kenyamanan, dan desain
             yang sesuai dengan kebutuhan masyarakat masa kini.
           </p>
@@ -344,7 +537,7 @@ const scrollCategories = (direction: "left" | "right") => {
               Pilihan Sarung
             </h2>
             <p className="mt-3 max-w-lg text-sm leading-6 text-[#2f241c]/55">
-              Jelajahi kategori pilihan Lar Garuda.
+              Jelajahi kategori pilihan Lar Gurda.
               Gambar produk berganti otomatis agar Anda dapat
               melihat lebih banyak koleksi.
             </p>
@@ -407,7 +600,7 @@ const scrollCategories = (direction: "left" | "right") => {
             <div
               ref={categoryCarouselRef}
               className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-8"
-              aria-label="Koleksi kategori Lar Garuda"
+              aria-label="Koleksi kategori Lar Gurda"
               onScroll={(event) => {
                 const container = event.currentTarget;
                 const cards = Array.from(
@@ -474,7 +667,7 @@ const scrollCategories = (direction: "left" | "right") => {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
 
                         <div className="absolute left-3 top-3 rounded-full bg-[#2f241c]/90 px-3 py-2 text-[10px] font-medium text-white sm:left-4 sm:top-4 sm:text-xs">
-                          Lar Garuda
+                          Lar Gurda
                         </div>
 
                         {currentProduct.stock <= 0 ? (
@@ -531,7 +724,7 @@ const scrollCategories = (direction: "left" | "right") => {
       <section className="px-5 pb-24 sm:px-6">
         <div className="mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-[#e5ded3] px-6 py-14 text-center sm:px-10">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#a27b3f]">
-            Lar Garuda
+            Lar Gurda
           </p>
           <h2 className="mt-4 font-serif text-3xl font-bold sm:text-4xl">
             Temukan Sarung Pilihan Anda
@@ -563,11 +756,11 @@ const scrollCategories = (direction: "left" | "right") => {
           </h2>
           <p className="mx-auto mt-5 max-w-xl leading-7 text-[#2f241c]/60">
             Untuk informasi produk dan pemesanan, silakan
-            hubungi Lar Garuda melalui WhatsApp.
+            hubungi Lar Gurda melalui WhatsApp.
           </p>
           <a
-            href={`https://wa.me/6285772492774?text=${encodeURIComponent(
-              "Halo Lar Garuda, saya ingin mendapatkan informasi mengenai produk sarung."
+            href={`https://wa.me/6281333888009?text=${encodeURIComponent(
+              "Halo Lar Gurda, saya ingin mendapatkan informasi mengenai produk sarung."
             )}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -580,16 +773,84 @@ const scrollCategories = (direction: "left" | "right") => {
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-[#2f241c] px-6 py-10 text-center text-white">
-        <p className="font-serif text-xl font-bold">LAR GARUDA</p>
-        <p className="mt-2 text-xs uppercase tracking-[0.25em] text-white/40">
-          Sarung Indonesia
-        </p>
-        <div className="mx-auto my-6 h-px w-12 bg-[#a27b3f]" />
-        <p className="text-xs text-white/40">
-          © 2026 Lar Garuda. All rights reserved.
-        </p>
-      </footer>
+      
+        <footer className="bg-[#2f241c] px-6 py-10 text-center text-white">
+          <p className="font-serif text-xl font-bold">LAR GARUDA</p>
+
+          <p className="mt-2 text-xs uppercase tracking-[0.25em] text-white/40">
+            Sarung Indonesia
+          </p>
+
+          <div className="mx-auto my-6 h-px w-12 bg-[#a27b3f]" />
+
+          {/* MEDIA SOSIAL DAN MARKETPLACE */}
+          <div className="mx-auto flex max-w-md flex-wrap items-center justify-center gap-5">
+            <a
+              href="https://www.instagram.com/largurda_ind/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram Lar Garuda"
+              className="transition hover:scale-110"
+            >
+              <img src="/products/instagram.png" alt="Instagram" className="h-7 w-7 object-contain" />
+            </a>
+
+            <a
+              href="https://web.facebook.com/largurdastore"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Facebook Lar Garuda"
+              className="transition hover:scale-110"
+            >
+              <img src="/products/facebook.png" alt="Facebook" className="h-7 w-7 object-contain" />
+            </a>
+
+            <a
+              href="https://shopee.co.id/largurdastore"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Shopee Lar Garuda"
+              className="transition hover:scale-110"
+            >
+              <img src="/products/shopee.png" alt="Shopee" className="h-11 w-11 object-contain" />
+            </a>
+
+            <a
+              href="https://www.tokopedia.com/largurdaoriginal"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Tokopedia Lar Garuda"
+              className="transition hover:scale-110"
+            >
+              <img src="/products/tokopedia.png" alt="Tokopedia" className="h-12 w-12 object-contain" />
+            </a>
+
+            <a
+              href="https://www.blibli.com/brand/lar-gurda"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Blibli Lar Garuda"
+              className="transition hover:scale-110"
+            >
+              <img src="/products/blibli.png" alt="Blibli" className="h-11 w-11 object-contain" />
+            </a>
+
+            <a
+              href="https://www.lazada.co.id/tag/sarung-lar-gurda-solo/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Lazada Lar Garuda"
+              className="transition hover:scale-110"
+            >
+              <img src="/products/lazada.png" alt="Lazada" className="h-7 w-7 object-contain" />
+            </a>
+          </div>
+
+          <p className="mt-7 text-xs text-white/40">
+            © 2026 Lar Garuda. All rights reserved.
+          </p>
+        </footer>
+
     </main>
   );
 }

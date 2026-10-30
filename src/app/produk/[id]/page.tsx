@@ -59,7 +59,7 @@ export default async function ProductDetail({
           <Link href="/">
 
             <h1 className="font-serif text-2xl font-bold tracking-wide">
-              LAR GARUDA
+              LAR GURDA
             </h1>
 
             <p className="text-[10px] uppercase tracking-[0.3em]">
@@ -102,7 +102,7 @@ export default async function ProductDetail({
           <div className="flex flex-col justify-center">
 
             <p className="text-sm uppercase tracking-[0.3em] text-[#a27b3f]">
-              Koleksi Lar Garuda
+              Koleksi Lar Gurda
             </p>
 
             <h1 className="mt-4 font-serif text-4xl font-bold leading-tight md:text-5xl">
@@ -197,7 +197,7 @@ export default async function ProductDetail({
       {/* FOOTER */}
 
       <footer className="bg-[#2f241c] px-6 py-8 text-center text-sm text-white/60">
-        © 2026 Lar Garuda. All rights reserved.
+        © 2026 Lar Gurda. All rights reserved.
       </footer>
 
     </main>

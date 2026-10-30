@@ -330,7 +330,7 @@ export default function EditProduk() {
           <div>
 
             <h1 className="font-serif text-2xl font-bold">
-              LAR GARUDA
+              LAR GURDA
             </h1>
 
             <p className="text-xs uppercase tracking-[0.2em] text-[#2f241c]/50">
@@ -591,7 +591,7 @@ export default function EditProduk() {
       {/* FOOTER */}
 
       <footer className="bg-[#2f241c] px-6 py-8 text-center text-sm text-white/60">
-        © 2026 Lar Garuda. All rights reserved.
+        © 2026 Lar Gurda. All rights reserved.
       </footer>
 
     </main>

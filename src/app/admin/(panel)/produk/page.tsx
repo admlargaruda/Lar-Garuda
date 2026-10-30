@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { CATEGORIES } from "@/lib/categories";
 
 type Product = {
   id: number;
@@ -11,6 +12,7 @@ type Product = {
   image: string;
   description: string;
   stock: number;
+  category?: string | null;
 };
 
 // Stok dianggap menipis jika jumlahnya sama atau di bawah angka ini.
@@ -21,6 +23,9 @@ export default function AdminProdukPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Kategori yang sedang dibuka (kunci: nama kategori)
+  const [terbuka, setTerbuka] = useState<Record<string, boolean>>({});
 
   // =====================================================
   // FORMAT RUPIAH
@@ -98,6 +103,38 @@ export default function AdminProdukPage() {
     );
   };
 
+    // Kelompokkan produk per kategori
+  const kelompok = useMemo(() => {
+    const urutan: string[] = [...CATEGORIES];
+    const peta = new Map<string, Product[]>();
+
+    products.forEach((p) => {
+      const nama = p.category && p.category.trim() ? p.category : "Tanpa kategori";
+      const daftar = peta.get(nama) ?? [];
+      daftar.push(p);
+      peta.set(nama, daftar);
+    });
+
+    const semuaNama = [
+      ...urutan.filter((n) => peta.has(n)),
+      ...Array.from(peta.keys()).filter((n) => !urutan.includes(n)),
+    ];
+
+    return semuaNama.map((nama) => {
+      const items = peta.get(nama) ?? [];
+
+      return {
+        nama,
+        items,
+        totalStok: items.reduce((s, p) => s + (p.stock ?? 0), 0),
+        habis: items.filter((p) => (p.stock ?? 0) <= 0).length,
+        menipis: items.filter(
+          (p) => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= LOW_STOCK_LIMIT
+        ).length,
+      };
+    });
+  }, [products]);
+
   return (
     <main className="min-h-screen bg-[#f8f5ef] text-[#2f241c]">
       {/* =====================================================
@@ -161,8 +198,32 @@ export default function AdminProdukPage() {
               Belum ada produk.
             </div>
           ) : (
-            <div className="divide-y divide-[#2f241c]/10">
-              {products.map((product) => {
+                        <div className="divide-y divide-[#2f241c]/10">
+              {kelompok.map((grup) => (
+                <div key={grup.nama}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTerbuka((s) => ({ ...s, [grup.nama]: !s[grup.nama] }))
+                    }
+                    className="flex w-full items-center justify-between gap-4 bg-[#e5ded3]/50 px-6 py-4 text-left transition hover:bg-[#e5ded3]"
+                  >
+                    <div>
+                      <p className="font-serif text-lg font-bold">{grup.nama}</p>
+
+                      <p className="mt-1 text-xs text-[#2f241c]/60">
+                        {grup.items.length} produk · total stok {grup.totalStok}
+                        {grup.habis > 0 ? ` · ${grup.habis} habis` : ""}
+                        {grup.menipis > 0 ? ` · ${grup.menipis} menipis` : ""}
+                      </p>
+                    </div>
+
+                    <span className="text-xl">{terbuka[grup.nama] ? "−" : "+"}</span>
+                  </button>
+
+                  {terbuka[grup.nama] && (
+                    <div className="divide-y divide-[#2f241c]/10">
+              {grup.items.map((product) => {
                 const stock = product.stock ?? 0;
 
                 return (
@@ -231,7 +292,11 @@ export default function AdminProdukPage() {
                     </div>
                   </div>
                 );
-              })}
+                           })}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

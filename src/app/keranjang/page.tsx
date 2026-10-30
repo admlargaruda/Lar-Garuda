@@ -13,6 +13,31 @@ type CartItem = {
   stock: number;
 };
 
+// Hasil dari fungsi database create_order_with_stock_v2
+type OrderResult = {
+  order_id: string;
+  total_amount: number;
+  is_reseller: boolean;
+  items: {
+    product_name: string;
+    price: number;
+    quantity: number;
+    subtotal: number;
+  }[];
+};
+
+// Hasil dari fungsi database get_reseller_prices (hanya pratinjau harga)
+type PricePreview = {
+  is_reseller: boolean;
+  total_amount: number;
+  items: {
+    product_id: string;
+    price: number;
+    quantity: number;
+    subtotal: number;
+  }[];
+};
+
 export default function CartPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -31,13 +56,18 @@ export default function CartPage() {
 
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Pratinjau harga reseller (hanya informasi; harga final dihitung database saat checkout)
+  const [preview, setPreview] = useState<PricePreview | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkMessage, setCheckMessage] = useState("");
+
   // =====================================================
   // MENGAMBIL DATA KERANJANG
   // =====================================================
 
   useEffect(() => {
     const loadCart = async () => {
-      const savedCart = localStorage.getItem("lar-garuda-cart");
+      const savedCart = localStorage.getItem("lar-gurda-cart");
 
       if (!savedCart) {
         setCart([]);
@@ -92,7 +122,7 @@ export default function CartPage() {
         setCart(updatedCart);
 
         localStorage.setItem(
-          "lar-garuda-cart",
+          "lar-gurda-cart",
           JSON.stringify(updatedCart)
         );
       } catch (error) {
@@ -128,7 +158,7 @@ export default function CartPage() {
     setCart(updatedCart);
 
     localStorage.setItem(
-      "lar-garuda-cart",
+      "lar-gurda-cart",
       JSON.stringify(updatedCart)
     );
   };
@@ -210,7 +240,7 @@ export default function CartPage() {
   };
 
   // =====================================================
-  // TOTAL
+  // TOTAL (harga umum, hanya perkiraan sebelum checkout)
   // =====================================================
 
   const total = cart.reduce(
@@ -230,7 +260,60 @@ export default function CartPage() {
       return;
     }
 
+    setPreview(null);
+    setCheckMessage("");
     setShowCheckoutForm(true);
+  };
+
+  // =====================================================
+  // CEK HARGA RESELLER (pratinjau)
+  // =====================================================
+
+  const checkResellerPrice = async () => {
+    if (isChecking || isProcessing) return;
+
+    const digits = customerPhone.replace(/\D/g, "");
+
+    if (digits.length < 9) {
+      setPreview(null);
+      setCheckMessage("Masukkan nomor WhatsApp yang valid terlebih dahulu.");
+      return;
+    }
+
+    setIsChecking(true);
+    setCheckMessage("");
+
+    const { data, error } = await supabase.rpc("get_reseller_prices", {
+      p_phone: customerPhone.trim(),
+      p_items: cart.map((item) => ({
+        product_id: String(item.id),
+        quantity: item.quantity,
+      })),
+    });
+
+    setIsChecking(false);
+
+    if (error || !data) {
+      console.error("Gagal mengecek harga reseller:", error);
+      setPreview(null);
+      setCheckMessage("Gagal mengecek harga. Silakan coba lagi.");
+      return;
+    }
+
+    const result = data as PricePreview;
+
+    if (!Array.isArray(result.items) || result.items.length === 0) {
+      setPreview(null);
+      setCheckMessage("Gagal mengecek harga. Silakan coba lagi.");
+      return;
+    }
+
+    setPreview(result);
+    setCheckMessage(
+      result.is_reseller
+        ? "Nomor terdaftar sebagai reseller. Harga reseller ditampilkan di ringkasan."
+        : "Nomor ini tidak terdaftar sebagai reseller. Harga umum berlaku."
+    );
   };
 
   // =====================================================
@@ -387,26 +470,25 @@ export default function CartPage() {
         })
       );
 
-      console.log(
-        "Data yang dikirim ke RPC:",
-        orderItems
-      );
-
       // =================================================
       // PANGGIL FUNCTION SUPABASE
+      // (harga reseller ditentukan database dari nomor WhatsApp)
       // =================================================
 
       const {
-        data: orderId,
+        data: orderData,
         error: orderError,
       } = await supabase.rpc(
-        "create_order_with_stock",
+        "create_order_with_stock_v2",
         {
           p_customer_name:
             customerName.trim(),
 
           p_customer_phone:
             customerPhone.trim(),
+
+          p_customer_address:
+            customerAddress.trim(),
 
           p_items: orderItems,
         }
@@ -430,46 +512,56 @@ export default function CartPage() {
       }
 
       // =================================================
-      // CEK ORDER ID
+      // CEK HASIL DARI DATABASE
       // =================================================
 
-      if (!orderId) {
+      const result = orderData as OrderResult | null;
+
+      if (
+        !result ||
+        !result.order_id ||
+        !Array.isArray(result.items) ||
+        result.items.length === 0
+      ) {
+        console.error(
+          "Hasil pesanan tidak lengkap:",
+          orderData
+        );
+
         alert(
-          "Pesanan gagal diproses karena Order ID tidak diterima."
+          "Pesanan gagal diproses karena data pesanan tidak diterima."
         );
 
         return;
       }
 
-      console.log(
-        "Order berhasil:",
-        orderId
-      );
-
       // =================================================
       // BUAT DAFTAR PRODUK UNTUK WHATSAPP
+      // (harga dan subtotal diambil dari database)
       // =================================================
 
-      const itemsMessage = cart
+      const itemsMessage = result.items
         .map(
           (item, index) =>
-            `${index + 1}. ${item.name}
+            `${index + 1}. ${item.product_name}
 Jumlah: ${item.quantity}
 Harga: ${formatRupiah(
               Number(item.price)
-            )}
+            )}${result.is_reseller ? " (harga reseller)" : ""}
 Subtotal: ${formatRupiah(
-              Number(item.price) *
-                item.quantity
+              Number(item.subtotal)
             )}`
         )
         .join("\n\n");
+
+      const shortCode =
+        result.order_id.slice(0, 8);
 
       // =================================================
       // PESAN WHATSAPP
       // =================================================
 
-      const message = `Halo Lar Garuda, saya ingin melakukan pemesanan:
+      const message = `Halo Lar Gurda, saya ingin melakukan pemesanan:
 
 Nama: ${customerName.trim()}
 No. WhatsApp: ${customerPhone.trim()}
@@ -479,20 +571,23 @@ ${customerAddress.trim()}
 
 ${itemsMessage}
 
-Total Pesanan: ${formatRupiah(total)}
+Total Pesanan: ${formatRupiah(
+        Number(result.total_amount)
+      )}
 
 Harga belum termasuk ongkir.
 
-Order ID: ${orderId}
+Kode Pesanan: ${shortCode}
+Order ID: ${result.order_id}
 
 Mohon konfirmasi pesanan saya. Terima kasih.`;
 
       // =================================================
-      // NOMOR WHATSAPP LAR GARUDA
+      // NOMOR WHATSAPP LAR GURDA
       // =================================================
 
       const whatsappNumber =
-        "6285772492774";
+        "6281333888009";
 
       const whatsappUrl =
         `https://wa.me/${whatsappNumber}?text=` +
@@ -503,7 +598,7 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
       // =================================================
 
       localStorage.removeItem(
-        "lar-garuda-cart"
+        "lar-gurda-cart"
       );
 
       setCart([]);
@@ -548,7 +643,7 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
           <Link href="/">
 
             <h1 className="font-serif text-2xl font-bold tracking-wide">
-              LAR GARUDA
+              LAR GURDA
             </h1>
 
             <p className="text-[10px] uppercase tracking-[0.3em]">
@@ -603,7 +698,7 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
             </h2>
 
             <p className="mt-3 text-[#2f241c]/60">
-              Silakan pilih produk Lar Garuda terlebih dahulu.
+              Silakan pilih produk Lar Gurda terlebih dahulu.
             </p>
 
             <Link
@@ -737,9 +832,14 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
 
               </div>
 
-              {/* KETERANGAN ONGKIR */}
+              {/* KETERANGAN HARGA DAN ONGKIR */}
 
               <p className="mt-2 text-right text-xs text-[#2f241c]/60">
+                Harga di atas adalah harga umum. Reseller terdaftar
+                mendapat harga reseller otomatis saat checkout.
+              </p>
+
+              <p className="mt-1 text-right text-xs text-[#2f241c]/60">
                 Harga belum termasuk ongkir
               </p>
 
@@ -815,15 +915,41 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
               <input
                 type="tel"
                 value={customerPhone}
-                onChange={(e) =>
-                  setCustomerPhone(
-                    e.target.value
-                  )
-                }
+                onChange={(e) => {
+                  setCustomerPhone(e.target.value);
+                  setPreview(null);
+                  setCheckMessage("");
+                }}
                 placeholder="Contoh: 081234567890"
                 disabled={isProcessing}
                 className="mt-2 w-full rounded-2xl border border-[#2f241c]/20 bg-white px-4 py-3 outline-none transition focus:border-[#a27b3f] disabled:opacity-50"
               />
+
+              <button
+                type="button"
+                onClick={checkResellerPrice}
+                disabled={isChecking || isProcessing}
+                className="mt-3 rounded-full border border-[#2f241c]/30 px-4 py-2 text-xs font-medium transition hover:bg-[#2f241c] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isChecking ? "Memeriksa..." : "Cek harga reseller"}
+              </button>
+
+              {checkMessage && (
+                <p
+                  className={`mt-2 text-xs ${
+                    preview?.is_reseller
+                      ? "font-medium text-green-700"
+                      : "text-[#2f241c]/60"
+                  }`}
+                >
+                  {checkMessage}
+                </p>
+              )}
+
+              <p className="mt-2 text-xs text-[#2f241c]/50">
+                Reseller: gunakan nomor yang terdaftar, lalu tekan tombol
+                di atas untuk melihat harga reseller.
+              </p>
 
             </div>
 
@@ -878,19 +1004,55 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
 
               </div>
 
+              {preview?.is_reseller && (
+                <div className="mt-3 space-y-1 border-t border-[#2f241c]/10 pt-3">
+                  {preview.items.map((it, index) => {
+                    const nama =
+                      cart.find(
+                        (c) => String(c.id) === String(it.product_id)
+                      )?.name ?? "Produk";
+
+                    return (
+                      <div
+                        key={`${it.product_id}-${index}`}
+                        className="flex justify-between gap-3 text-xs"
+                      >
+                        <span className="text-[#2f241c]/60">
+                          {nama} ({it.quantity} × {formatRupiah(Number(it.price))})
+                        </span>
+
+                        <span className="font-medium">
+                          {formatRupiah(Number(it.subtotal))}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="mt-2 flex justify-between">
 
                 <span className="text-[#2f241c]/60">
-                  Total
+                  {preview?.is_reseller
+                    ? "Total (harga reseller)"
+                    : "Total (harga umum)"}
                 </span>
 
                 <span className="font-bold text-[#a27b3f]">
-                  {formatRupiah(total)}
+                  {formatRupiah(
+                    preview ? Number(preview.total_amount) : total
+                  )}
                 </span>
 
               </div>
 
               <p className="mt-2 text-xs text-[#2f241c]/50">
+                {preview
+                  ? "Ini pratinjau. Harga final dihitung saat pesanan dibuat."
+                  : "Jika nomor WhatsApp Anda terdaftar sebagai reseller, harga reseller diterapkan pada pesanan."}
+              </p>
+
+              <p className="mt-1 text-xs text-[#2f241c]/50">
                 Harga belum termasuk ongkir
               </p>
 
@@ -1052,7 +1214,7 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
       ================================================= */}
 
       <footer className="bg-[#2f241c] px-6 py-8 text-center text-sm text-white/60">
-        © 2026 Lar Garuda. All rights reserved.
+        © 2026 Lar Gurda. All rights reserved.
       </footer>
 
     </main>

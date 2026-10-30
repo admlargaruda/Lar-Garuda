@@ -25,6 +25,31 @@ type CartItem = {
   stock: number;
 };
 
+// Hasil dari fungsi database create_order_with_stock_v2
+type OrderResult = {
+  order_id: string;
+  total_amount: number;
+  is_reseller: boolean;
+  items: {
+    product_name: string;
+    price: number;
+    quantity: number;
+    subtotal: number;
+  }[];
+};
+
+// Hasil dari fungsi database get_reseller_prices (hanya pratinjau harga)
+type PricePreview = {
+  is_reseller: boolean;
+  total_amount: number;
+  items: {
+    product_id: string;
+    price: number;
+    quantity: number;
+    subtotal: number;
+  }[];
+};
+
 export default function BuySection({
   product,
   whatsappNumber,
@@ -40,6 +65,11 @@ export default function BuySection({
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [message, setMessage] = useState("");
+
+  // Pratinjau harga reseller (hanya informasi; harga final dihitung database saat checkout)
+  const [preview, setPreview] = useState<PricePreview | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkMessage, setCheckMessage] = useState("");
 
   // =====================================================
   // FORMAT RUPIAH
@@ -63,7 +93,7 @@ export default function BuySection({
       return;
     }
 
-    const savedCart = localStorage.getItem("lar-garuda-cart");
+    const savedCart = localStorage.getItem("lar-gurda-cart");
 
     let cart: CartItem[] = [];
 
@@ -113,7 +143,7 @@ export default function BuySection({
     }
 
     localStorage.setItem(
-      "lar-garuda-cart",
+      "lar-gurda-cart",
       JSON.stringify(cart)
     );
 
@@ -133,7 +163,57 @@ export default function BuySection({
     }
 
     setMessage("");
+    setPreview(null);
+    setCheckMessage("");
     setShowForm(true);
+  };
+
+  // =====================================================
+  // CEK HARGA RESELLER (pratinjau)
+  // =====================================================
+
+  const checkResellerPrice = async () => {
+    if (isChecking || isProcessing) return;
+
+    const digits = customerPhone.replace(/\D/g, "");
+
+    if (digits.length < 9) {
+      setPreview(null);
+      setCheckMessage("Masukkan nomor WhatsApp yang valid terlebih dahulu.");
+      return;
+    }
+
+    setIsChecking(true);
+    setCheckMessage("");
+
+    const { data, error } = await supabase.rpc("get_reseller_prices", {
+      p_phone: customerPhone.trim(),
+      p_items: [{ product_id: String(product.id), quantity: quantity }],
+    });
+
+    setIsChecking(false);
+
+    if (error || !data) {
+      console.error("Gagal mengecek harga reseller:", error);
+      setPreview(null);
+      setCheckMessage("Gagal mengecek harga. Silakan coba lagi.");
+      return;
+    }
+
+    const result = data as PricePreview;
+
+    if (!Array.isArray(result.items) || result.items.length === 0) {
+      setPreview(null);
+      setCheckMessage("Gagal mengecek harga. Silakan coba lagi.");
+      return;
+    }
+
+    setPreview(result);
+    setCheckMessage(
+      result.is_reseller
+        ? "Nomor terdaftar sebagai reseller. Harga reseller ditampilkan di ringkasan."
+        : "Nomor ini tidak terdaftar sebagai reseller. Harga umum berlaku."
+    );
   };
 
   // =====================================================
@@ -245,20 +325,16 @@ export default function BuySection({
         },
       ];
 
-      console.log(
-        "Data yang dikirim ke RPC:",
-        orderItems
-      );
-
       // =================================================
-      // SIMPAN ORDER + KURANGI STOK
+      // SIMPAN ORDER + KURANGI STOK + HITUNG HARGA
+      // (harga reseller ditentukan database dari nomor WhatsApp)
       // =================================================
 
       const {
-        data: orderId,
+        data: orderData,
         error: orderError,
       } = await supabase.rpc(
-        "create_order_with_stock",
+        "create_order_with_stock_v2",
         {
           p_customer_name: customerName.trim(),
           p_customer_phone: customerPhone.trim(),
@@ -286,56 +362,59 @@ export default function BuySection({
       }
 
       // =================================================
-      // CEK ORDER ID
+      // CEK HASIL DARI DATABASE
       // =================================================
 
-      if (!orderId) {
+      const result = orderData as OrderResult | null;
+
+      if (
+        !result ||
+        !result.order_id ||
+        !Array.isArray(result.items) ||
+        result.items.length === 0
+      ) {
         console.error(
-          "Order ID tidak diterima dari database."
+          "Hasil pesanan tidak lengkap:",
+          orderData
         );
 
         setMessage(
-          "Pesanan gagal diproses karena Order ID tidak diterima."
+          "Pesanan gagal diproses karena data pesanan tidak diterima."
         );
 
         setIsProcessing(false);
         return;
       }
 
-      console.log(
-        "Order berhasil:",
-        orderId
-      );
-
-      // =================================================
-      // HITUNG TOTAL
-      // =================================================
-
-      const total =
-        latestProduct.price * quantity;
-
       // =================================================
       // BUAT PESAN WHATSAPP
+      // (harga dan total diambil dari database)
       // =================================================
 
-      const whatsappMessage = `Halo Lar Garuda, saya ingin melakukan pemesanan:
+      const line = result.items[0];
+      const shortCode = result.order_id.slice(0, 8);
+
+      const whatsappMessage = `Halo Lar Gurda, saya ingin melakukan pemesanan:
 
 Nama: ${customerName.trim()}
 No. WhatsApp: ${customerPhone.trim()}
 Alamat: ${customerAddress.trim()}
 
-Produk: ${latestProduct.name}
-Jumlah: ${quantity}
-Harga: ${formatRupiah(latestProduct.price)}
-Subtotal: ${formatRupiah(total)}
+Produk: ${line.product_name}
+Jumlah: ${line.quantity}
+Harga: ${formatRupiah(Number(line.price))}${
+        result.is_reseller ? " (harga reseller)" : ""
+      }
+Subtotal: ${formatRupiah(Number(line.subtotal))}
 
-Total Pesanan: ${formatRupiah(total)}
+Total Pesanan: ${formatRupiah(Number(result.total_amount))}
 
 Catatan:
 Harga belum termasuk ongkir.
 Ongkos kirim akan diinformasikan setelah alamat dikonfirmasi.
 
-Order ID: ${orderId}
+Kode Pesanan: ${shortCode}
+Order ID: ${result.order_id}
 
 Mohon konfirmasi pesanan saya. Terima kasih.`;
 
@@ -514,15 +593,41 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
               <input
                 type="tel"
                 value={customerPhone}
-                onChange={(e) =>
-                  setCustomerPhone(
-                    e.target.value
-                  )
-                }
+                onChange={(e) => {
+                  setCustomerPhone(e.target.value);
+                  setPreview(null);
+                  setCheckMessage("");
+                }}
                 placeholder="Contoh: 081234567890"
                 disabled={isProcessing}
                 className="mt-2 w-full rounded-2xl border border-[#2f241c]/20 bg-white px-4 py-3 outline-none transition focus:border-[#a27b3f] disabled:opacity-50"
               />
+
+              <button
+                type="button"
+                onClick={checkResellerPrice}
+                disabled={isChecking || isProcessing}
+                className="mt-3 rounded-full border border-[#2f241c]/30 px-4 py-2 text-xs font-medium transition hover:bg-[#2f241c] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isChecking ? "Memeriksa..." : "Cek harga reseller"}
+              </button>
+
+              {checkMessage && (
+                <p
+                  className={`mt-2 text-xs ${
+                    preview?.is_reseller
+                      ? "font-medium text-green-700"
+                      : "text-[#2f241c]/60"
+                  }`}
+                >
+                  {checkMessage}
+                </p>
+              )}
+
+              <p className="mt-2 text-xs text-[#2f241c]/50">
+                Reseller: gunakan nomor yang terdaftar, lalu tekan tombol
+                di atas untuk melihat harga reseller.
+              </p>
             </div>
 
             {/* ALAMAT */}
@@ -548,35 +653,48 @@ Mohon konfirmasi pesanan saya. Terima kasih.`;
 
             {/* RINGKASAN */}
 
-              <div className="mt-5 rounded-2xl bg-[#e5ded3] p-4">
-                <p className="text-xs uppercase tracking-[0.15em] text-[#2f241c]/50">
-                  Ringkasan Pesanan
+            <div className="mt-5 rounded-2xl bg-[#e5ded3] p-4">
+              <p className="text-xs uppercase tracking-[0.15em] text-[#2f241c]/50">
+                Ringkasan Pesanan
+              </p>
+
+              <div className="mt-3 flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-medium">
+                    {product.name}
+                  </p>
+
+                  <p className="mt-1 text-sm text-[#2f241c]/60">
+                    {quantity} ×{" "}
+                    {formatRupiah(
+                      preview ? Number(preview.items[0].price) : product.price
+                    )}
+                    {preview?.is_reseller && " (harga reseller)"}
+                  </p>
+                </div>
+
+                <p className="font-semibold text-[#a27b3f]">
+                  {formatRupiah(
+                    preview
+                      ? Number(preview.total_amount)
+                      : product.price * quantity
+                  )}
+                </p>
+              </div>
+
+              {/* KETERANGAN HARGA DAN ONGKIR */}
+              <div className="mt-3 border-t border-[#2f241c]/10 pt-3">
+                <p className="text-xs italic text-[#2f241c]/60">
+                  {preview
+                    ? "Harga di atas adalah pratinjau. Harga final dihitung saat pesanan dibuat."
+                    : "Harga di atas adalah harga umum. Jika nomor WhatsApp Anda terdaftar sebagai reseller, harga reseller diterapkan otomatis pada pesanan."}
                 </p>
 
-                <div className="mt-3 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-medium">
-                      {product.name}
-                    </p>
-
-                    <p className="mt-1 text-sm text-[#2f241c]/60">
-                      {quantity} ×{" "}
-                      {formatRupiah(product.price)}
-                    </p>
-                  </div>
-
-                  <p className="font-semibold text-[#a27b3f]">
-                    {formatRupiah(product.price * quantity)}
-                  </p>
-                </div>
-
-                {/* KETERANGAN ONGKIR */}
-                <div className="mt-3 border-t border-[#2f241c]/10 pt-3">
-                  <p className="text-xs italic text-[#2f241c]/60">
-                    Harga belum termasuk ongkir
-                  </p>
-                </div>
+                <p className="mt-1 text-xs italic text-[#2f241c]/60">
+                  Harga belum termasuk ongkir
+                </p>
               </div>
+            </div>
 
             {/* PESAN */}
 

@@ -222,7 +222,7 @@ export default function AdminOrdersPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <Link href="/admin">
             <h1 className="font-serif text-2xl font-bold tracking-wide">
-              LAR GARUDA
+              LAR GURDA
             </h1>
 
             <p className="text-[10px] uppercase tracking-[0.3em]">
@@ -230,12 +230,6 @@ export default function AdminOrdersPage() {
             </p>
           </Link>
 
-          <Link
-            href="/admin"
-            className="text-sm transition hover:text-[#a27b3f]"
-          >
-            ← Dashboard
-          </Link>
         </div>
       </nav>
 
@@ -256,7 +250,7 @@ export default function AdminOrdersPage() {
           </h1>
 
           <p className="mt-3 text-[#2f241c]/60">
-            Kelola dan pantau pesanan pelanggan Lar Garuda.
+            Kelola dan pantau pesanan pelanggan Lar Gurda.
           </p>
         </div>
 
@@ -264,161 +258,223 @@ export default function AdminOrdersPage() {
             TABEL PESANAN
         ================================= */}
 
-        <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
-          {loading ? (
-            <div className="p-10 text-center">
-              <p className="text-[#2f241c]/60">
-                Memuat data pesanan...
-              </p>
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="p-10 text-center">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#e5ded3] text-3xl">
-                📦
+        
+<div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+  {loading ? (
+    <div className="p-10 text-center">
+      <p className="text-sm text-[#2f241c]/60">
+        Memuat data pesanan...
+      </p>
+    </div>
+  ) : orders.length === 0 ? (
+    <div className="p-10 text-center">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#e5ded3] text-3xl">
+        📦
+      </div>
+      <h2 className="mt-5 font-serif text-2xl font-bold">
+        Belum Ada Pesanan
+      </h2>
+      <p className="mt-2 text-sm text-[#2f241c]/60">
+        Pesanan pelanggan akan muncul di halaman ini.
+      </p>
+    </div>
+  ) : (
+    <>
+      {/* TAMPILAN MOBILE */}
+      <div className="space-y-3 p-3 sm:hidden">
+        {orders.map((order) => (
+          <div
+            key={order.id}
+            className="rounded-xl border border-[#2f241c]/10 p-3"
+          >
+            {/* Nama pelanggan dan total */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="break-words text-sm font-bold">
+                  {order.customer_name}
+                </p>
+                <p className="mt-1 text-[10px] text-[#2f241c]/40">
+                  ID: {order.id.slice(0, 8)}...
+                </p>
               </div>
 
-              <h2 className="mt-5 font-serif text-2xl font-bold">
-                Belum Ada Pesanan
-              </h2>
-
-              <p className="mt-2 text-[#2f241c]/60">
-                Pesanan pelanggan akan muncul di halaman ini.
+              <p className="shrink-0 text-right text-sm font-bold text-[#a27b3f]">
+                {formatRupiah(Number(order.total_amount))}
               </p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
-                <thead>
-                  <tr className="border-b border-[#2f241c]/10 bg-[#e5ded3] text-left text-sm">
-                    <th className="px-6 py-4">
-                      Pelanggan
-                    </th>
 
-                    <th className="px-6 py-4">
-                      WhatsApp
-                    </th>
+            <div className="my-3 border-t border-[#2f241c]/10" />
 
-                    <th className="px-6 py-4">
-                      Total
-                    </th>
-
-                    <th className="px-6 py-4">
-                      Status
-                    </th>
-
-                    <th className="px-6 py-4">
-                      Tanggal
-                    </th>
-
-                    <th className="px-6 py-4 text-center">
-                      Aksi
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {orders.map((order) => (
-                    <tr
-                      key={order.id}
-                      className="border-b border-[#2f241c]/10 last:border-b-0"
-                    >
-                      {/* PELANGGAN */}
-
-                      <td className="px-6 py-5">
-                        <p className="font-semibold">
-                          {order.customer_name}
-                        </p>
-
-                        <p className="mt-1 text-xs text-[#2f241c]/40">
-                          ID: {order.id.slice(0, 8)}...
-                        </p>
-                      </td>
-
-                      {/* WHATSAPP */}
-
-                      <td className="px-6 py-5">
-                        <a
-                          href={`https://wa.me/${order.customer_phone.replace(
-                            /^0/,
-                            "62"
-                          )}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-[#a27b3f] hover:underline"
-                        >
-                          {order.customer_phone}
-                        </a>
-                      </td>
-
-                      {/* TOTAL */}
-
-                      <td className="px-6 py-5 font-semibold">
-                        {formatRupiah(
-                          Number(order.total_amount)
-                        )}
-                      </td>
-
-                      {/* STATUS */}
-
-                      <td className="px-6 py-5">
-                        <select
-                          value={order.status}
-                          disabled={
-                            order.status === "cancelled" ||
-                            updatingId === order.id
-                          }
-                          onChange={(e) =>
-                            updateStatus(
-                              order.id,
-                              e.target.value
-                            )
-                          }
-                          className={`rounded-full border-0 px-3 py-2 text-xs font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-80 ${statusClass(
-                            order.status
-                          )}`}
-                        >
-                          {Object.entries(ORDER_STATUS).map(
-                            ([value, s]) => (
-                              <option key={value} value={value}>
-                                {s.label}
-                              </option>
-                            )
-                          )}
-                        </select>
-
-                        {order.stock_restored && (
-                          <p className="mt-2 text-xs font-medium text-red-600">
-                            Stok telah dikembalikan
-                          </p>
-                        )}
-                      </td>
-
-                      {/* TANGGAL */}
-
-                      <td className="px-6 py-5 text-sm text-[#2f241c]/60">
-                        {formatDate(order.created_at)}
-                      </td>
-
-                      {/* DETAIL */}
-
-                      <td className="px-6 py-5 text-center">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            viewDetail(order)
-                          }
-                          className="rounded-full bg-[#2f241c] px-5 py-2 text-sm font-medium text-white transition hover:bg-[#a27b3f]"
-                        >
-                          Detail
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* WhatsApp */}
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-[#2f241c]/50">WhatsApp</span>
+              <a
+                href={`https://wa.me/${order.customer_phone.replace(
+                  /^0/,
+                  "62"
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="max-w-[65%] break-all text-right text-[#a27b3f] hover:underline"
+              >
+                {order.customer_phone}
+              </a>
             </div>
-          )}
-        </div>
+
+            {/* Tanggal */}
+            <div className="mt-2 flex items-start justify-between gap-2 text-xs">
+              <span className="shrink-0 text-[#2f241c]/50">
+                Tanggal
+              </span>
+              <span className="text-right text-[#2f241c]/70">
+                {formatDate(order.created_at)}
+              </span>
+            </div>
+
+            {/* Status */}
+            <div className="mt-3">
+              <label className="mb-1 block text-xs text-[#2f241c]/50">
+                Status pesanan
+              </label>
+
+              <select
+                value={order.status}
+                disabled={
+                  order.status === "cancelled" ||
+                  updatingId === order.id
+                }
+                onChange={(e) =>
+                  updateStatus(order.id, e.target.value)
+                }
+                className={`w-full rounded-lg border-0 px-3 py-2 text-xs font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-80 ${statusClass(
+                  order.status
+                )}`}
+              >
+                {Object.entries(ORDER_STATUS).map(([value, s]) => (
+                  <option key={value} value={value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+
+              {order.stock_restored && (
+                <p className="mt-2 text-[10px] font-medium text-red-600">
+                  Stok telah dikembalikan
+                </p>
+              )}
+            </div>
+
+            {/* Tombol detail */}
+            <button
+              type="button"
+              onClick={() => viewDetail(order)}
+              className="mt-3 w-full rounded-full bg-[#2f241c] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#a27b3f]"
+            >
+              Lihat Detail Pesanan
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* TAMPILAN DESKTOP */}
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="w-full min-w-[900px]">
+          <thead>
+            <tr className="border-b border-[#2f241c]/10 bg-[#e5ded3] text-left text-sm">
+              <th className="px-6 py-4">Pelanggan</th>
+              <th className="px-6 py-4">WhatsApp</th>
+              <th className="px-6 py-4">Total</th>
+              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4">Tanggal</th>
+              <th className="px-6 py-4 text-center">Aksi</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {orders.map((order) => (
+              <tr
+                key={order.id}
+                className="border-b border-[#2f241c]/10 last:border-b-0"
+              >
+                <td className="px-6 py-5">
+                  <p className="font-semibold">
+                    {order.customer_name}
+                  </p>
+                  <p className="mt-1 text-xs text-[#2f241c]/40">
+                    ID: {order.id.slice(0, 8)}...
+                  </p>
+                </td>
+
+                <td className="px-6 py-5">
+                  <a
+                    href={`https://wa.me/${order.customer_phone.replace(
+                      /^0/,
+                      "62"
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-[#a27b3f] hover:underline"
+                  >
+                    {order.customer_phone}
+                  </a>
+                </td>
+
+                <td className="px-6 py-5 font-semibold">
+                  {formatRupiah(Number(order.total_amount))}
+                </td>
+
+                <td className="px-6 py-5">
+                  <select
+                    value={order.status}
+                    disabled={
+                      order.status === "cancelled" ||
+                      updatingId === order.id
+                    }
+                    onChange={(e) =>
+                      updateStatus(order.id, e.target.value)
+                    }
+                    className={`rounded-full border-0 px-3 py-2 text-xs font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-80 ${statusClass(
+                      order.status
+                    )}`}
+                  >
+                    {Object.entries(ORDER_STATUS).map(
+                      ([value, s]) => (
+                        <option key={value} value={value}>
+                          {s.label}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  {order.stock_restored && (
+                    <p className="mt-2 text-xs font-medium text-red-600">
+                      Stok telah dikembalikan
+                    </p>
+                  )}
+                </td>
+
+                <td className="px-6 py-5 text-sm text-[#2f241c]/60">
+                  {formatDate(order.created_at)}
+                </td>
+
+                <td className="px-6 py-5 text-center">
+                  <button
+                    type="button"
+                    onClick={() => viewDetail(order)}
+                    className="rounded-full bg-[#2f241c] px-5 py-2 text-sm font-medium text-white transition hover:bg-[#a27b3f]"
+                  >
+                    Detail
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )}
+</div>
+
       </section>
 
       {/* ================================
@@ -609,7 +665,7 @@ export default function AdminOrdersPage() {
       ================================= */}
 
       <footer className="bg-[#2f241c] px-6 py-8 text-center text-sm text-white/60">
-        © 2026 Lar Garuda. All rights reserved.
+        © 2026 Lar Gurda. All rights reserved.
       </footer>
     </main>
   );
